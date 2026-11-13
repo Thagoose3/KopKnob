@@ -65,3 +65,4 @@ Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). W
 - **Tile views subscribe on `Loaded` and unsubscribe on `Unloaded`**, so rebuilding views (M4) won't leak handlers.
 - **layout.json is written at startup if missing**, not only on clean exit.
 - **AtomicFile** (Core) holds the tmp-then-move write used by `JsonStore` and notes.txt.
+- **Git fix:** the default .NET `.gitignore` has `*.app` (macOS bundles), which matched `src/Knob.App` case-insensitively, so no App source was committed before commit "fix: track src/Knob.App". The M0/M1 "feat" commits before it contain Core/tests/docs only; the App sources for both milestones are in that one fix commit. `.gitignore` now un-ignores `/src/Knob.App/`.
