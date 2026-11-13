@@ -5,7 +5,7 @@ using Knob.App.Platform;
 
 namespace Knob.App.Shell;
 
-/// <summary>Tray icon with Open / Edit layout (disabled until M4) / Position / Run at startup / Quit.</summary>
+/// <summary>Tray icon with Open / Edit layout / Position / Run at startup / Quit.</summary>
 public sealed class TrayIcon : IDisposable
 {
     private readonly NotifyIcon _notifyIcon;
@@ -19,8 +19,7 @@ public sealed class TrayIcon : IDisposable
         var menu = new ContextMenuStrip();
         menu.Items.Add("Open", null, (_, _) => OpenRequested?.Invoke());
 
-        var editLayout = new ToolStripMenuItem("Edit layout") { Enabled = false };
-        menu.Items.Add(editLayout);
+        menu.Items.Add("Edit layout", null, (_, _) => EditLayoutRequested?.Invoke());
 
         // Quick placements; the knob can also be dragged out of the open panel and dropped on an edge.
         var positionMenu = new ToolStripMenuItem("Position");
@@ -61,6 +60,7 @@ public sealed class TrayIcon : IDisposable
     public event Action? QuitRequested;
     public event Action<bool>? RunAtStartupToggled;
     public event Action<DockPreset>? PresetChosen;
+    public event Action? EditLayoutRequested;
 
     /// <summary>Setting this raises <see cref="RunAtStartupToggled"/> too, so handlers must be idempotent.</summary>
     public bool RunAtStartupChecked

@@ -115,6 +115,28 @@ M3 verification (2026-11-13):
 - [ ] **User to check:** scan Square / Dots / Rounded QR codes with a phone
 - [ ] **User to check:** OCR on a real web page, and the capture/OCR at 150 % display scaling
 
+## M4
+
+- **Editor works on a copy** (`GridLayout.Clone()`): **Done** applies + saves layout.json; **Back / Esc / panel closing** discards; **Reset** puts the default layout in the editor (still needs Done).
+- **Tiles appear as cards** in the editor (title, S/W/L buttons for the tile's `SupportedSizes`, ✕ to hide) rather than live tiles, so their own buttons/text boxes can't fight with dragging.
+- **Drag feedback:** the target footprint is drawn while dragging — accent = fits, red = blocked or sticks out; dropping on red leaves the tile where it was. A refused S/W/L click flashes the would-be footprint red.
+- **Hidden tiles** = registered tiles not in the layout (System monitor starts hidden). Dragging a hidden chip onto the grid places it at the tile's smallest supported size.
+- **Panel is taller while editing** (330 vs 250 DIP) to fit the hidden strip + Reset/Done. The window is now always 330 DIP tall; the unused part is transparent (click-through). On side docks the open panel is centred on the pill.
+- **Entry points:** tray → Edit layout, or the small ✎ in the open panel's top-left corner. Edit mode sets `KeepOpen` (panel stays open) and disables drag-out.
+- **TileHost re-layout while open** closes the old tiles and opens the new ones, so each tile gets balanced Opened/Closed calls (no double minute-tick subscriptions, monitor polling not left running).
+- Core API added: `CanPlace`, `Hide`, `TryShow`, `TryShowAnywhere`, `Clone` (tests incl. PLAN's "hide then show with no free space → false"; overlapping layout.json → default was already covered).
+
+M4 verification (2026-11-13):
+
+- [x] `dotnet test` — 197/197 pass
+- [x] ✎ opens edit mode; cards with S/W/L + ✕; hidden strip shows System
+- [x] Clock S→W refused while Disk is next to it; after hiding Disk, Clock → W works
+- [x] Dragging Timer onto Media: red footprint, snaps back on drop
+- [x] Dragging hidden System onto a full grid: red, stays hidden; after hiding Notes: accent footprint, placed as W
+- [x] Done → real panel shows the new layout (System monitor live, Clock wide); restart → same layout from layout.json
+- [x] Monitor tile on the grid, panel closed: 0.000 s CPU in 60 s (polling stops)
+- [x] Back cancels (hidden Timer came back); Reset + Done → layout.json identical to the pre-test default
+
 ## Added at the user's request (outside PLAN)
 
 - **Notch position (2026-11-13):** the centered pill covered browser tabs. First version was a tray Left/Center/Right switch; replaced the same day by dragging (below). The tray **Position** menu remains as presets: Top center / Top left (8 DIP gap) / Top right (150 DIP gap, keeps a maximized window's ─ □ ✕ clear) / Left side / Right side.

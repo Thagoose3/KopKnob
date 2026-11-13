@@ -11,6 +11,7 @@ public sealed class TileHost : Grid
     private readonly TileRegistry _registry;
     private readonly List<ITile> _placed = [];
     private GridLayout _layout;
+    private bool _open;
 
     public TileHost(TileRegistry registry, GridLayout layout)
     {
@@ -21,19 +22,36 @@ public sealed class TileHost : Grid
         Build();
     }
 
+    public TileRegistry Registry => _registry;
+
+    /// <summary>
+    /// Replacing the layout while the panel is open closes the old tiles and opens the new ones,
+    /// so every tile sees a balanced Opened/Closed pair (no double subscriptions, no polling left running).
+    /// </summary>
     public GridLayout Layout
     {
         get => _layout;
-        set { _layout = value; Build(); }
+        set
+        {
+            var open = _open;
+            if (open) OnPanelClosed();
+            _layout = value;
+            Build();
+            if (open) OnPanelOpened();
+        }
     }
 
     public void OnPanelOpened()
     {
+        if (_open) return;
+        _open = true;
         foreach (var t in _placed) Safe(t.OnPanelOpened);
     }
 
     public void OnPanelClosed()
     {
+        if (!_open) return;
+        _open = false;
         foreach (var t in _placed) Safe(t.OnPanelClosed);
     }
 

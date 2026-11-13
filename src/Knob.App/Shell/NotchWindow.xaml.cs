@@ -24,6 +24,8 @@ public partial class NotchWindow : Window
 {
     private const double PillThickness = 30, MinPillLength = 150, MinSidePillLength = 100;
     private const double PanelWidth = 720, PanelHeight = 250;
+    // The window is tall enough for the edit-mode panel; the extra area is transparent (click-through) otherwise.
+    private const double EditPanelHeight = 330, WindowHeight = EditPanelHeight;
     private const double PresetGapLeft = 8, PresetGapRight = 150; // right keeps a maximized window's ─ □ ✕ clear
     private const double DragThreshold = 6;
     private static readonly Duration AnimDuration = new(TimeSpan.FromMilliseconds(180));
@@ -41,6 +43,7 @@ public partial class NotchWindow : Window
     private double _pillCentre;           // pill centre along its edge, DIP inside the window
     private Point? _dragPending;
     private bool _dragging;
+    private bool _editing;
 
     public NotchWindow(NotchController controller)
     {
@@ -48,7 +51,7 @@ public partial class NotchWindow : Window
         InitializeComponent();
 
         Width = PanelWidth;
-        Height = PanelHeight;
+        Height = WindowHeight;
 
         // Own (unfrozen) brush so FlashPill can animate it.
         _surfaceBrush = new SolidColorBrush((Color)FindResource("BackgroundColor"));
@@ -58,6 +61,7 @@ public partial class NotchWindow : Window
         Surface.MouseLeave += (_, _) => { if (!_dragging) _controller.PointerExited(); };
         Surface.MouseLeftButtonUp += (_, _) => _controller.Clicked();
         FloatClose.Click += (_, _) => DockBack(collapse: true);
+        EditButton.Click += (_, _) => EditRequested?.Invoke();
 
         PreviewMouseDown += OnPreviewMouseDown;
         PreviewMouseLeftButtonDown += OnPreviewLeftDown;
@@ -76,7 +80,32 @@ public partial class NotchWindow : Window
     /// <summary>Raised after the user moves the knob (drag/drop or preset); the settings should be saved.</summary>
     public event Action? DockChanged;
 
+    /// <summary>The ✎ button in the open panel was clicked.</summary>
+    public event Action? EditRequested;
+
+    /// <summary>Esc while editing the layout: cancel the edit (instead of closing the panel).</summary>
+    public event Action? EditCancelRequested;
+
     public bool IsFloating => _dock.Edge == DockEdge.Floating;
+
+    /// <summary>
+    /// Layout edit mode: taller panel (room for the hidden-tile strip), no drag-out, no ✎ button.
+    /// The caller keeps the panel open (controller.KeepOpen) while this is true.
+    /// </summary>
+    public bool Editing
+    {
+        get => _editing;
+        set
+        {
+            if (_editing == value) return;
+            _editing = value;
+            UpdateEditButton();
+            if (_controller.IsExpanded || IsFloating) SetSurface(SurfaceTarget(expanded: true), animate: true);
+        }
+    }
+
+    private void UpdateEditButton() =>
+        EditButton.Visibility = (_controller.IsExpanded || IsFloating) && !_editing ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Content shown inside the expanded panel.</summary>
     public object? PanelBody
@@ -292,7 +321,7 @@ public partial class NotchWindow : Window
             {
                 var along = _dock.Offset ?? MonitorHeightDip / 2;
                 winX = _dock.Edge == DockEdge.Left ? 0 : MonitorWidthDip - PanelWidth;
-                winY = DockGeometry.Start(along, PanelHeight, MonitorHeightDip);
+                winY = DockGeometry.Start(along, WindowHeight, MonitorHeightDip);
                 _pillCentre = along - winY;
                 break;
             }
@@ -313,7 +342,7 @@ public partial class NotchWindow : Window
         int x = _monitor.Left + (int)Math.Round(winX * _scale);
         int y = _monitor.Top + (int)Math.Round(winY * _scale);
         int w = (int)Math.Round(PanelWidth * _scale);
-        int h = (int)Math.Round(PanelHeight * _scale);
+        int h = (int)Math.Round(WindowHeight * _scale);
         NativeMethods.SetWindowPos(_hwnd, NativeMethods.HWND_TOPMOST, x, y, w, h, NativeMethods.SWP_NOACTIVATE);
 
         _pillLength = MeasurePillLength();
@@ -323,13 +352,19 @@ public partial class NotchWindow : Window
     /// <summary>Surface size and offset (inside the window) for the current edge.</summary>
     private (double W, double H, Thickness M) SurfaceTarget(bool expanded)
     {
-        if (expanded || IsFloating) return (PanelWidth, PanelHeight, new Thickness(0));
+        if (expanded || IsFloating)
+        {
+            var height = _editing ? EditPanelHeight : PanelHeight;
+            // Side docks: centre the panel on the pill; top dock / floating: from the top of the window.
+            var top = IsSide ? DockGeometry.Start(_pillCentre, height, WindowHeight) : 0;
+            return (PanelWidth, height, new Thickness(0, top, 0, 0));
+        }
         return _dock.Edge switch
         {
             DockEdge.Left => (PillThickness, _pillLength,
-                new Thickness(0, DockGeometry.Start(_pillCentre, _pillLength, PanelHeight), 0, 0)),
+                new Thickness(0, DockGeometry.Start(_pillCentre, _pillLength, WindowHeight), 0, 0)),
             DockEdge.Right => (PillThickness, _pillLength,
-                new Thickness(PanelWidth - PillThickness, DockGeometry.Start(_pillCentre, _pillLength, PanelHeight), 0, 0)),
+                new Thickness(PanelWidth - PillThickness, DockGeometry.Start(_pillCentre, _pillLength, WindowHeight), 0, 0)),
             _ => (_pillLength, PillThickness,
                 new Thickness(DockGeometry.Start(_pillCentre, _pillLength, PanelWidth), 0, 0, 0)),
         };
@@ -394,6 +429,7 @@ public partial class NotchWindow : Window
     {
         var gen = ++_animGeneration;
         if (open) PanelContent.Visibility = Visibility.Visible;
+        EditButton.Visibility = open && !_editing ? Visibility.Visible : Visibility.Collapsed;
 
         SetSurface(SurfaceTarget(open), animate: true, completed: () =>
         {
@@ -427,7 +463,7 @@ public partial class NotchWindow : Window
     private void OnPreviewLeftDown(object sender, MouseButtonEventArgs e)
     {
         // Press on an empty part of the open panel (not a control) → may become a drag.
-        _dragPending = _controller.State == NotchState.Open && !IsInteractive(e.OriginalSource as DependencyObject)
+        _dragPending = _controller.State == NotchState.Open && !_editing && !IsInteractive(e.OriginalSource as DependencyObject)
             ? e.GetPosition(this)
             : null;
     }
@@ -560,7 +596,8 @@ public partial class NotchWindow : Window
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Escape) return;
-        if (IsFloating) DockBack(collapse: true);
+        if (_editing) EditCancelRequested?.Invoke();
+        else if (IsFloating) DockBack(collapse: true);
         else _controller.RequestClose();
         e.Handled = true;
     }

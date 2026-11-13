@@ -36,6 +36,7 @@ public partial class App : Application
     private TesseractOcrService? _ocr;
     private TextCaptureTool? _textCapture;
     private HotkeyManager? _hotkeys;
+    private bool _editing;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -62,6 +63,8 @@ public partial class App : Application
         _window = new NotchWindow(_controller);
         _window.UseDock(_settings.Dock);
         _window.DockChanged += SaveSettings;
+        _window.EditRequested += EnterEditMode;
+        _window.EditCancelRequested += () => _panelHost?.Back();
         _window.Show();
 
         _pillStatus = new PillStatus(_window, SystemClock.Instance);
@@ -79,6 +82,11 @@ public partial class App : Application
         _tray.QuitRequested += () => Shutdown();
         _tray.RunAtStartupToggled += OnRunAtStartupToggled;
         _tray.PresetChosen += p => _window.ApplyPreset(p);
+        _tray.EditLayoutRequested += () =>
+        {
+            EnterEditMode();
+            ActivateForKeyboard(); // so Esc works and a click elsewhere doesn't leave it hanging
+        };
 
         RegisterHotkeys();
     }
@@ -128,6 +136,37 @@ public partial class App : Application
             _panelHost.Back(); // next open starts on the tiles; stops tool-page polling
             _tileHost.OnPanelClosed();
         };
+    }
+
+    /// <summary>
+    /// Layout edit mode on a copy of the layout. The panel stays open (KeepOpen) and gets taller;
+    /// Done applies + saves; Back / Esc / panel closing discards.
+    /// </summary>
+    private void EnterEditMode()
+    {
+        if (_editing || _tileHost is null || _panelHost is null || _controller is null || _window is null) return;
+        _editing = true;
+
+        _controller.RequestOpen();
+        _controller.KeepOpen = true;
+        _window.Editing = true;
+
+        var editor = new LayoutEditor(_tileHost.Registry, _tileHost.Layout.Clone(), done: layout =>
+        {
+            _tileHost.Layout = layout;
+            SaveLayout(layout);
+            _panelHost.Back();
+        });
+
+        void OnClosed()
+        {
+            _panelHost.ToolClosed -= OnClosed;
+            _editing = false;
+            _window.Editing = false;
+            if (!_window.IsFloating) _controller.KeepOpen = false; // floating panels stay open anyway
+        }
+        _panelHost.ShowTool(editor, "Edit layout");
+        _panelHost.ToolClosed += OnClosed;
     }
 
     private void OpenCalculator() => OpenTool(_calculator!.CreateView(), "Calculator");
