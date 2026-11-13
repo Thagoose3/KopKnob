@@ -14,6 +14,7 @@ public sealed class TodoList : IJsonNormalizable
 {
     public List<TodoItem> Items { get; set; } = [];
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public int DoneCount => Items.Count(i => i.Done);
 
     public TodoItem? Add(string? text)
