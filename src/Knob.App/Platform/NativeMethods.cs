@@ -59,6 +59,9 @@ internal static class NativeMethods
     [DllImport("user32.dll", EntryPoint = "SetWindowLongW")]
     private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
 
+    public static long GetWindowStyle(IntPtr hwnd) =>
+        IntPtr.Size == 8 ? GetWindowLongPtr64(hwnd, -16).ToInt64() : GetWindowLong32(hwnd, -16);
+
     public static long GetExStyle(IntPtr hwnd) =>
         IntPtr.Size == 8 ? GetWindowLongPtr64(hwnd, GWL_EXSTYLE).ToInt64() : GetWindowLong32(hwnd, GWL_EXSTYLE);
 
