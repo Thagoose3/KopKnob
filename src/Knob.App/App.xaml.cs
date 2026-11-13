@@ -24,6 +24,7 @@ public partial class App : Application
     private PomodoroService? _pomodoro;
     private CoffeeTile? _coffee;
     private NotesTile? _notes;
+    private MediaSessionService? _media;
     private JsonStore<LayoutData>? _layoutStore;
     private TileHost? _tileHost;
 
@@ -69,10 +70,13 @@ public partial class App : Application
         _pomodoro = new PomodoroService(clock, _window!, _pillStatus!);
         _coffee = new CoffeeTile(_window!);
         _notes = new NotesTile(KnobPaths.Notes, Dispatcher);
+        _media = new MediaSessionService(Dispatcher);
+        _ = _media.StartAsync();
 
         var registry = new TileRegistry(
         [
             new TimerTile(_pomodoro),
+            new MediaTile(_media, clock, Dispatcher),
             _coffee,
             _notes,
             new ClockTile(clock, _pillStatus!),
@@ -130,6 +134,7 @@ public partial class App : Application
     {
         _notes?.Save();
         _coffee?.Set(false);
+        _media?.Dispose();
         if (_tileHost is not null) SaveLayout(_tileHost.Layout);
         _tray?.Dispose();
         _pillStatus?.Dispose();
