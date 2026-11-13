@@ -48,6 +48,38 @@ public sealed class GridLayout
         return i >= 0 && TryReplace(i, _placements[i] with { Size = size });
     }
 
+    /// <summary>Would <paramref name="tileId"/> fit at (col,row) with this size? Its own current cells count as free.</summary>
+    public bool CanPlace(string tileId, int col, int row, TileSize size)
+    {
+        var candidate = new TilePlacement(tileId, col, row, size);
+        if (!InBounds(candidate)) return false;
+        foreach (var p in _placements)
+            if (p.TileId != tileId && Overlaps(candidate, p)) return false;
+        return true;
+    }
+
+    /// <summary>Take a tile off the grid (it becomes "hidden").</summary>
+    public bool Hide(string tileId) => _placements.RemoveAll(p => p.TileId == tileId) > 0;
+
+    /// <summary>Put a hidden tile on the grid at (col,row). False if it is already shown, sticks out or overlaps.</summary>
+    public bool TryShow(string tileId, TileSize size, int col, int row)
+    {
+        if (IndexOf(tileId) >= 0 || !CanPlace(tileId, col, row, size)) return false;
+        _placements.Add(new TilePlacement(tileId, col, row, size));
+        return true;
+    }
+
+    /// <summary>Put a hidden tile in the first free spot (row by row, left to right). False if there is no room.</summary>
+    public bool TryShowAnywhere(string tileId, TileSize size)
+    {
+        for (var r = 0; r < Rows; r++)
+            for (var c = 0; c < Columns; c++)
+                if (TryShow(tileId, size, c, r)) return true;
+        return false;
+    }
+
+    public GridLayout Clone() => new(_placements);
+
     public static bool IsValid(IEnumerable<TilePlacement> placements)
     {
         var list = placements.ToList();

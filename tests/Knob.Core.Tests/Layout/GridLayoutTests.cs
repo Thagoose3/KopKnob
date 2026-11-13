@@ -107,6 +107,79 @@ public class GridLayoutTests
     }
 
     [Fact]
+    public void Hide_RemovesTile_AndFreesItsCells()
+    {
+        var g = Small();
+        Assert.True(g.Hide("a"));
+        Assert.DoesNotContain(g.Placements, p => p.TileId == "a");
+        Assert.True(g.TryMove("b", 0, 0)); // a's old cells are free now
+        Assert.False(g.Hide("a"));         // already hidden
+    }
+
+    [Fact]
+    public void TryShow_AtFreeSpot_Adds()
+    {
+        var g = Small();
+        Assert.True(g.TryShow("new", TileSize.W, 4, 1));
+        Assert.Contains(new TilePlacement("new", 4, 1, TileSize.W), g.Placements);
+    }
+
+    [Fact]
+    public void TryShow_Blocked_OrAlreadyShown_ReturnsFalse()
+    {
+        var g = Small();
+        Assert.False(g.TryShow("new", TileSize.S, 1, 1));  // inside "a"
+        Assert.False(g.TryShow("new", TileSize.L, 7, 0));  // sticks out
+        Assert.False(g.TryShow("b", TileSize.S, 5, 0));    // b is already on the grid
+    }
+
+    [Fact]
+    public void HideThenShow_WhenNoSpaceLeft_ReturnsFalse()
+    {
+        var g = GridLayout.Default();              // the default fills all 24 cells
+        Assert.True(g.Hide("disk"));
+        Assert.True(g.TryShowAnywhere("monitor", TileSize.S)); // takes disk's cell
+        Assert.False(g.TryShowAnywhere("disk", TileSize.S));   // nowhere left
+        Assert.DoesNotContain(g.Placements, p => p.TileId == "disk");
+    }
+
+    [Fact]
+    public void TryShowAnywhere_FindsFirstFreeSpot()
+    {
+        var g = Small();
+        Assert.True(g.TryShowAnywhere("x", TileSize.L));
+        var x = g.Placements.Single(p => p.TileId == "x");
+        Assert.Equal((3, 0), (x.Col, x.Row)); // first L-sized hole scanning row by row, left to right
+    }
+
+    [Fact]
+    public void CanPlace_IgnoresTheTileItself()
+    {
+        var g = Small();
+        Assert.True(g.CanPlace("a", 0, 1, TileSize.L));          // rows 1–2 are free (and overlapping itself is fine)
+        Assert.False(g.CanPlace("a", 0, 2, TileSize.L));         // would stick out at the bottom
+        Assert.True(g.CanPlace("a", 0, 0, TileSize.L));          // its own cells
+        Assert.False(g.CanPlace("b", 1, 0, TileSize.S));         // inside a
+    }
+
+    [Fact]
+    public void Clone_IsIndependent()
+    {
+        var g = Small();
+        var copy = g.Clone();
+        copy.TryMove("b", 5, 1);
+        Assert.Contains(new TilePlacement("b", 2, 0, TileSize.S), g.Placements);
+        Assert.Contains(new TilePlacement("b", 5, 1, TileSize.S), copy.Placements);
+    }
+
+    [Fact]
+    public void FromData_EmptyList_IsValid_AllHidden()
+    {
+        var g = GridLayout.FromData(new LayoutData { Placements = [] });
+        Assert.Empty(g.Placements);
+    }
+
+    [Fact]
     public void Serialize_RoundTrip()
     {
         var dir = Path.Combine(Path.GetTempPath(), "KnobTests", Guid.NewGuid().ToString("N"));
