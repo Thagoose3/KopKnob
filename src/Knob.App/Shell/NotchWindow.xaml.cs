@@ -21,6 +21,7 @@ public partial class NotchWindow : Window
     private IntPtr _hwnd;
     private int _animGeneration;
     private double _pillWidth = PillWidth;
+    private DispatcherTimer? _messageTimer;
 
     public NotchWindow(NotchController controller)
     {
@@ -88,6 +89,31 @@ public partial class NotchWindow : Window
         CoffeeDot.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         UpdatePillWidth();
     }
+
+    /// <summary>
+    /// Replace the pill content with a short status ("Reading…", "Copied 42 chars").
+    /// With a duration it reverts on its own (one-shot timer); null keeps it until the next call.
+    /// </summary>
+    public void ShowPillMessage(string? text, TimeSpan? duration = null)
+    {
+        _messageTimer?.Stop();
+        var show = !string.IsNullOrEmpty(text);
+        MessageText.Text = text ?? "";
+        MessageText.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        PillNormal.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        UpdatePillWidth();
+
+        if (show && duration is TimeSpan d)
+        {
+            _messageTimer ??= new DispatcherTimer(DispatcherPriority.Normal, Dispatcher);
+            _messageTimer.Interval = d;
+            _messageTimer.Tick -= OnMessageTimeout;
+            _messageTimer.Tick += OnMessageTimeout;
+            _messageTimer.Start();
+        }
+    }
+
+    private void OnMessageTimeout(object? sender, EventArgs e) => ShowPillMessage(null);
 
     /// <summary>Blink the pill background to the accent colour 3 times, then stop.</summary>
     public void FlashPill()
@@ -247,6 +273,7 @@ public partial class NotchWindow : Window
     private void OnDeactivated(object? sender, EventArgs e)
     {
         // Clicked outside after typing in the panel.
+        if (_controller.KeepOpen) return; // e.g. our own Save dialog took focus
         DisableKeyboardInput();
         _controller.HoldOpen = false;
         if (!_controller.PointerInside) _controller.RequestClose();

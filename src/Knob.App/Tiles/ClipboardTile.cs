@@ -67,21 +67,7 @@ public sealed class ClipboardService : IDisposable
     }
 
     /// <summary>Put an item back on the clipboard. The resulting update just moves it to the top (no duplicate).</summary>
-    public async void CopyBack(ClipboardItem item)
-    {
-        for (var attempt = 0; attempt < 5; attempt++)
-        {
-            try
-            {
-                WpfClipboard.SetDataObject(item.Text, copy: true);
-                return;
-            }
-            catch (COMException)
-            {
-                await Task.Delay(50);
-            }
-        }
-    }
+    public async void CopyBack(ClipboardItem item) => await ClipboardUtil.TrySetTextAsync(item.Text);
 
     public void TogglePin(long id) { if (History.Pin(id)) Commit(); }
     public void Remove(long id) { if (History.Remove(id)) Commit(); }

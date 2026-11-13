@@ -53,6 +53,9 @@ public sealed class TrayIcon : IDisposable
         set => _runAtStartup.Checked = value;
     }
 
+    public void ShowWarning(string title, string text) =>
+        _notifyIcon.ShowBalloonTip(6000, title, text, ToolTipIcon.Warning);
+
     public void Dispose()
     {
         _notifyIcon.Visible = false;

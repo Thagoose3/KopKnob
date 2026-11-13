@@ -15,6 +15,7 @@ public sealed class NotchController
     private readonly DispatcherTimer _openTimer;
     private readonly DispatcherTimer _closeTimer;
     private bool _holdOpen;
+    private bool _keepOpen;
 
     public NotchController(AppSettings settings, Dispatcher dispatcher)
     {
@@ -28,7 +29,7 @@ public sealed class NotchController
         {
             Interval = TimeSpan.FromMilliseconds(Math.Max(0, settings.CloseDelayMs)),
         };
-        _closeTimer.Tick += (_, _) => { _closeTimer.Stop(); if (!PointerInside && !_holdOpen) BeginClose(); };
+        _closeTimer.Tick += (_, _) => { _closeTimer.Stop(); if (!PointerInside && !_holdOpen && !_keepOpen) BeginClose(); };
     }
 
     public NotchState State { get; private set; } = NotchState.Collapsed;
@@ -44,6 +45,22 @@ public sealed class NotchController
             _holdOpen = value;
             if (value) _closeTimer.Stop();
             else if (IsExpanded && !PointerInside) { _closeTimer.Stop(); _closeTimer.Start(); } // pointer already left
+        }
+    }
+
+    /// <summary>
+    /// True while something modal needs the panel (a Save dialog; layout editing in M4):
+    /// hover-out and deactivation don't close it. Esc still does.
+    /// </summary>
+    public bool KeepOpen
+    {
+        get => _keepOpen;
+        set
+        {
+            if (_keepOpen == value) return;
+            _keepOpen = value;
+            if (value) _closeTimer.Stop();
+            else if (IsExpanded && !PointerInside && !_holdOpen) { _closeTimer.Stop(); _closeTimer.Start(); }
         }
     }
 
@@ -65,7 +82,7 @@ public sealed class NotchController
     {
         PointerInside = false;
         _openTimer.Stop();
-        if (IsExpanded && !_holdOpen) { _closeTimer.Stop(); _closeTimer.Start(); }
+        if (IsExpanded && !_holdOpen && !_keepOpen) { _closeTimer.Stop(); _closeTimer.Start(); }
     }
 
     public void Clicked()
@@ -88,6 +105,7 @@ public sealed class NotchController
         _openTimer.Stop();
         _closeTimer.Stop();
         _holdOpen = false;
+        _keepOpen = false;
         if (IsExpanded) BeginClose();
     }
 

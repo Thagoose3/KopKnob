@@ -87,4 +87,23 @@ Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). W
 - **Clipboard trim never drops the newest item**, even when every older item is pinned (found by test).
 - **Copy-back** isn't specially suppressed: the resulting clipboard update just moves the item to the top (no duplicate), which is also the expected "most recent" order.
 - **Media position** is extrapolated from the session's `LastUpdatedTime` while playing; the 1 s progress timer runs only while the panel is open and something is playing.
+
+## M3
+
+- **Downloads (user approved 2026-11-13):** NuGet `QRCoder` 1.8.1 (MIT) and `Tesseract` 5.2.0 (Apache-2.0, ships x64/x86 native leptonica + tesseract50); `tha.traineddata` (1.0 MB) and `eng.traineddata` (3.9 MB) from `tesseract-ocr/tessdata_fast` (Apache-2.0), committed under `src/Knob.App/tessdata/` and copied next to the exe.
+- **Hotkey parser** requires at least one modifier and exactly one key; accepts `Ctrl`/`Control`, `Win`/`Windows`, letters, digits, F1–F24, Space, Tab, Enter, navigation keys, PrintScreen. `MOD_NOREPEAT` so holding the keys doesn't re-fire. Failed registrations are reported in one tray balloon.
+- **Calculator:** percent is postfix (`200*15%` = 30); unary minus binds looser than `^` (`-2^2` = -4); integer powers are exact decimal (square-and-multiply), fractional powers go through `double`. Results show with thousands separators; Enter copies the plain number (no separators) so it pastes anywhere. Clicking a history entry puts its *expression* back.
+- **QR:** `forceUtf8` so Thai text scans as UTF-8. Preview renders at an integer number of pixels per module (crisp). Square modules overlap by 0.5 px to avoid hairline seams. Copy puts both a bitmap and a "PNG" stream on the clipboard.
+- **`NotchController.KeepOpen`** (new): set while the Save dialog is up so hover-out / deactivation don't collapse the panel; M4 layout editing will reuse it. Esc still closes.
+- **Pill messages** ("Reading…", "Copied N chars", "No text found", "OCR data missing", "OCR failed") temporarily replace the normal pill content.
+- **Capture overlay** maps the dragged rectangle to screenshot pixels by ratio (screenshot is stretched to the overlay), so no DPI arithmetic is needed. It closes the panel first (220 ms) so the panel isn't in the screenshot. Losing focus cancels it.
+- **Launcher** now has 4 buttons: Calculator, QR code, Text capture, System monitor (tooltips show the hotkeys).
+
+M3 verification so far (2026-11-13, screen was locked part-way, UI checks pending):
+
+- [x] `dotnet test` — 167/167 pass (incl. every calculator case in PLAN)
+- [x] All three hotkeys registered by Knob (another process can't register them)
+- [x] Tesseract engine loads (native DLLs + tha/eng data). Rendered test images: `ภาษาไทยอ่านได้ไหม` read exactly; `Knob reads English text` (white on black) exact; `สวัสดีครับ Hello world ราคา 100 บาท` read as `สวัสดีครับ Hello world mm 100 บาท` — one Thai word missed. 33–77 ms per image after the engine is loaded.
+- [ ] Hotkeys from another app; Calculator UI; QR UI; capture overlay + OCR on a real web page at 100 % and 150 %
+- [ ] **User to check:** scan Square / Dots / Rounded QR codes with a phone
 - **Git fix:** the default .NET `.gitignore` has `*.app` (macOS bundles), which matched `src/Knob.App` case-insensitively, so no App source was committed before commit "fix: track src/Knob.App". The M0/M1 "feat" commits before it contain Core/tests/docs only; the App sources for both milestones are in that one fix commit. `.gitignore` now un-ignores `/src/Knob.App/`.

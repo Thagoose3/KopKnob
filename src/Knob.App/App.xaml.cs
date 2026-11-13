@@ -3,13 +3,15 @@ using System.Windows;
 using Knob.App.Platform;
 using Knob.App.Shell;
 using Knob.App.Tiles;
+using Knob.App.Tools;
 using Knob.Core;
+using Knob.Core.Input;
 using Knob.Core.Layout;
 using Knob.Core.Storage;
 
 namespace Knob.App;
 
-/// <summary>Composition root: single instance, settings, window, pill status, tray.</summary>
+/// <summary>Composition root: single instance, settings, window, pill status, tiles, tools, hotkeys, tray.</summary>
 public partial class App : Application
 {
     private const string MutexName = "Knob.SingleInstance";
@@ -29,6 +31,11 @@ public partial class App : Application
     private JsonStore<LayoutData>? _layoutStore;
     private TileHost? _tileHost;
     private PanelHost? _panelHost;
+    private CalculatorTool? _calculator;
+    private QrTool? _qr;
+    private TesseractOcrService? _ocr;
+    private TextCaptureTool? _textCapture;
+    private HotkeyManager? _hotkeys;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -58,12 +65,19 @@ public partial class App : Application
         _pillStatus = new PillStatus(_window, SystemClock.Instance);
         _pillStatus.Start();
 
+        _calculator = new CalculatorTool(KnobPaths.CalcHistory);
+        _qr = new QrTool(_controller);
+        _ocr = new TesseractOcrService();
+        _textCapture = new TextCaptureTool(_window, _controller, _ocr);
+
         BuildTiles();
 
         _tray = new TrayIcon(_settings.RunAtStartup);
         _tray.OpenRequested += OnTrayOpen;
         _tray.QuitRequested += () => Shutdown();
         _tray.RunAtStartupToggled += OnRunAtStartupToggled;
+
+        RegisterHotkeys();
     }
 
     private void BuildTiles()
@@ -91,6 +105,9 @@ public partial class App : Application
             monitor,
             new LauncherTile(
             [
+                new LauncherTile.Entry("", $"Calculator ({_settings.Hotkeys.Calculator})", OpenCalculator),
+                new LauncherTile.Entry("", $"QR code ({_settings.Hotkeys.Qr})", OpenQr),
+                new LauncherTile.Entry("", $"Text capture ({_settings.Hotkeys.TextCapture})", () => _textCapture!.Start()),
                 new LauncherTile.Entry("", "System monitor", () => monitor.ShowAsTool(_panelHost!)),
             ]),
         ]);
@@ -110,6 +127,42 @@ public partial class App : Application
         };
     }
 
+    private void OpenCalculator() => OpenTool(_calculator!.CreateView(), "Calculator");
+
+    private void OpenQr() => OpenTool(_qr!.CreateView(), "QR code");
+
+    /// <summary>Open the panel straight into a tool page that takes typing.</summary>
+    private void OpenTool(FrameworkElement view, string title)
+    {
+        _controller!.RequestOpen();
+        _panelHost!.ShowTool(view, title);
+        ActivateForKeyboard();
+    }
+
+    /// <summary>Take keyboard focus; if Windows refuses, fall back to hover rules so the panel can't get stuck.</summary>
+    private void ActivateForKeyboard()
+    {
+        _window!.EnableKeyboardInput();
+        if (!_window.IsActive && !_controller!.PointerInside) _controller.PointerExited();
+    }
+
+    private void RegisterHotkeys()
+    {
+        _hotkeys = new HotkeyManager();
+        var failed = new List<string>();
+        void Add(string name, string combo, Action action)
+        {
+            var hk = HotkeyParser.Parse(combo);
+            if (hk is null || !_hotkeys.Register(hk, action)) failed.Add($"{name} ({combo})");
+        }
+        Add("Calculator", _settings.Hotkeys.Calculator, OpenCalculator);
+        Add("QR code", _settings.Hotkeys.Qr, OpenQr);
+        Add("Text capture", _settings.Hotkeys.TextCapture, () => _textCapture!.Start());
+
+        if (failed.Count > 0)
+            _tray?.ShowWarning("Knob: hotkey not available", "Already used or invalid: " + string.Join(", ", failed));
+    }
+
     private void SaveLayout(GridLayout layout)
     {
         try { _layoutStore?.Save(layout.ToData()); }
@@ -121,9 +174,7 @@ public partial class App : Application
         if (_controller is null || _window is null) return;
         _controller.RequestOpen();
         // Pointer is in the tray, not over the panel: activate so a click elsewhere (Deactivated) closes it.
-        _window.EnableKeyboardInput();
-        // If Windows refused to activate us, nothing would ever close the panel: fall back to hover rules.
-        if (!_window.IsActive) _controller.PointerExited();
+        ActivateForKeyboard();
     }
 
     private void OnRunAtStartupToggled(bool enabled)
@@ -141,16 +192,18 @@ public partial class App : Application
     private void SaveSettings()
     {
         try { _settingsStore?.Save(_settings); }
-        catch (System.IO.IOException) { }
+        catch (IOException) { }
         catch (UnauthorizedAccessException) { }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _hotkeys?.Dispose();
         _notes?.Save();
         _coffee?.Set(false);
         _media?.Dispose();
         _clipboard?.Dispose();
+        _ocr?.Dispose();
         if (_tileHost is not null) SaveLayout(_tileHost.Layout);
         _tray?.Dispose();
         _pillStatus?.Dispose();
