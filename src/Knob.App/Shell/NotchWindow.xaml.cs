@@ -114,6 +114,26 @@ public partial class NotchWindow : Window
         set => PanelHost.Content = value;
     }
 
+    /// <summary>
+    /// Hide the knob while a fullscreen app is in front (video, game, presentation); bring it back afterwards.
+    /// Uses ShowWindow so WPF's own visibility/activation logic isn't involved.
+    /// </summary>
+    public void SetFullscreenHidden(bool hidden)
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        if (hidden)
+        {
+            if (!IsFloating) _controller.RequestClose();
+            NativeMethods.ShowWindow(_hwnd, NativeMethods.SW_HIDE);
+        }
+        else
+        {
+            NativeMethods.ShowWindow(_hwnd, NativeMethods.SW_SHOWNOACTIVATE);
+            NativeMethods.SetWindowPos(_hwnd, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0,
+                NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE);
+        }
+    }
+
     /// <summary>Set before Show(): the (shared, persisted) dock settings this window reads and updates.</summary>
     public void UseDock(DockSettings dock)
     {

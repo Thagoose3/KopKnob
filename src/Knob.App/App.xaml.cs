@@ -37,6 +37,7 @@ public partial class App : Application
     private TextCaptureTool? _textCapture;
     private HotkeyManager? _hotkeys;
     private bool _editing;
+    private FullscreenWatcher? _fullscreen;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -89,6 +90,12 @@ public partial class App : Application
         };
 
         RegisterHotkeys();
+
+        if (_settings.HideOnFullscreen)
+        {
+            _fullscreen = new FullscreenWatcher();
+            _fullscreen.FullscreenChanged += on => _window.SetFullscreenHidden(on);
+        }
     }
 
     private void BuildTiles()
@@ -240,6 +247,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _fullscreen?.Dispose();
         _hotkeys?.Dispose();
         _notes?.Save();
         _coffee?.Set(false);

@@ -13,6 +13,14 @@ internal static class NativeMethods
     public const int WM_DPICHANGED = 0x02E0;
 
     public const uint SWP_NOACTIVATE = 0x0010;
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOMOVE = 0x0002;
+    public const int SW_HIDE = 0;
+    public const int SW_SHOWNOACTIVATE = 4;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
     public const uint SWP_NOZORDER = 0x0004;
     public static readonly IntPtr HWND_TOPMOST = new(-1);
 
