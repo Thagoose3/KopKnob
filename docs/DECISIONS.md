@@ -2,24 +2,24 @@
 
 Things PLAN.md did not specify, and the choice made.
 
-## ⚠ Testing status (read first)
+## Testing status
 
-This dev machine has **Smart App Control** in enforce mode. It blocks every unsigned DLL/EXE we build:
-`dotnet test` cannot load `Knob.Core.Tests.dll`, and `Knob.exe` is blocked from starting (confirmed via the
-CodeIntegrity event log, 2026-11-13). The user chose to keep writing code with **build-only** verification and test everything later.
+M0 was first written build-only because Smart App Control blocked unsigned builds. The user turned SAC off
+on 2026-11-13; everything below was then run on the real machine (1920×1080-class screen, ~125% scaling).
 
-Commits made under this rule have only been checked with `dotnet build` (0 warnings, 0 errors).
-Before going further than M0, run on a machine (or after the user turns SAC off):
+M0 acceptance results:
 
-```
-dotnet test Knob.sln
-```
+- [x] `dotnet test` — 12/12 pass (`JsonStoreTests`, `MinuteAlignerTests`)
+- [x] Pill visible top-center showing `HH:mm` and battery % — screenshot
+- [x] Hover expands, leaving collapses — screenshot
+- [x] Not in taskbar / Alt+Tab — window has `WS_EX_TOOLWINDOW`, no `WS_EX_APPWINDOW`, `ShowInTaskbar=False` (checked via `GetWindowLongPtr`)
+- [x] Doesn't steal focus — `GetForegroundWindow` stays Notepad after hover, clicking the pill, and clicking inside the panel
+- [x] Second instance exits quietly (exit code 0)
+- [x] Idle CPU — 0.000 s of CPU time over 60 s collapsed
+- [ ] **User to check:** change scaling 100% → 150% in Settings and confirm the pill stays top-center (changing display settings is left to the user)
+- [ ] **User to check:** tray menu (Open / Run at startup / Quit)
 
-Not yet run / verified:
-
-- [ ] `JsonStoreTests` (Task 0.2)
-- [ ] `MinuteAlignerTests` (Task 0.4)
-- [ ] M0 acceptance criteria (all need the app running) — see PLAN.md "เกณฑ์รับงาน M0"
+Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). WinForms is loaded for the tray icon; revisit in Task 5.2.
 
 ## M0
 
