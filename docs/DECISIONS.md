@@ -137,6 +137,27 @@ M4 verification (2026-11-13):
 - [x] Monitor tile on the grid, panel closed: 0.000 s CPU in 60 s (polling stops)
 - [x] Back cancels (hidden Timer came back); Reset + Done → layout.json identical to the pre-test default
 
+## M5
+
+- **Fullscreen detection uses three event sources, not just the appbar.** PLAN specified `ABN_FULLSCREENAPP` only. It worked in the first test, but later on this machine the shell stopped sending it (even after a fresh start) — likely because always-on-top overlay windows (NVIDIA overlay etc.) make the shell think a fullscreen app is already up. Now: `EVENT_SYSTEM_FOREGROUND` (foreground changed) + `EVENT_OBJECT_LOCATIONCHANGE` hooked only for the foreground window's process and filtered to that window (F11-style resize in place) + `ABN_FULLSCREENAPP` as a hint. Every source just re-checks: the foreground window covers the whole primary monitor, is not the desktop (`Progman`/`WorkerW`), not one of Knob's own windows (capture overlay), and not a normal maximized window with a title bar (those cover the monitor when the taskbar auto-hides). All event-driven; nothing runs while nothing happens.
+- Hiding uses `ShowWindow(SW_HIDE / SW_SHOWNOACTIVATE)` and re-asserts topmost on return. A floating panel hides too.
+- **Explorer restart:** WinForms `NotifyIcon` re-adds the tray icon on `TaskbarCreated` by itself; the fullscreen watcher re-registers its appbar on the same message. Verified by broadcasting `TaskbarCreated` (not by killing Explorer, which would close the user's folder windows): Knob stayed alive and fullscreen hiding still worked.
+- **Crash handling:** `DispatcherUnhandledException` (logged, handled → keeps running), `AppDomain.UnhandledException` (logged), `TaskScheduler.UnobservedTaskException` (logged, observed) → `%APPDATA%\Knob\crash.log`, trimmed to ~1 MB. A tile whose `CreateView` throws shows an "error" tile (since M1).
+- **Resume / unlock / RDP connect** re-place the knob (monitors may have changed meanwhile); the minute clock already re-aligns on resume (M0).
+- **Publish:** `dotnet publish src/Knob.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish` → `Knob.exe` 24.9 MB (most of it is the Windows SDK/WinRT projection used by the media tile) + `tessdata/` and `x64/`,`x86/` native OCR libraries next to it (not bundled, so Tesseract can load them; `TesseractEnviornment.CustomSearchPath` points at the exe folder). `publish/` is git-ignored.
+
+M5 verification (2026-11-13):
+
+- [x] New fullscreen window → knob hidden; closed → back (3 runs, incl. after a `TaskbarCreated` broadcast)
+- [x] Same window going fullscreen in place (F11-style) → hidden; back to normal size → shown
+- [x] Normal maximized window with a title bar → knob stays visible
+- [x] Published single-file `Knob.exe` runs, reads the same `%APPDATA%\Knob` data, and OCR works from it (captured the desktop label "Recycle Bin" exactly); no crash.log
+- [x] **Idle (Task 5.2), published Release build, collapsed 5 min untouched: +0.047 s CPU** (target < 0.3 s). Cumulative every 30 s: 0, 0, 0.016 … 0.016, 0.047 — i.e. the minute tick and nothing else.
+  An earlier 5-min run on the Debug build showed +4.2 s; a follow-up minute showed 0.125 s then flat zero, and the knob turned out to have been moved/used during that window — not a background timer.
+- [x] Timer/animation audit: the only timer running while collapsed is the minute tick; all others are one-shot or run only while visible/active; the only repeating animation is the 3-blink flash; `CompositionTarget.Rendering` unused.
+- [ ] **RAM target missed (accepted per PLAN: "WPF can't go much lower"):** fresh start working set 161 MB, of which **private 89 MB** (the rest is shared .NET/WPF images). After an OCR run the working set stays ~220 MB even after the Tesseract engine is released (native heap isn't returned to the OS right away). Possible follow-up: trim the working set after the engine is released.
+- [ ] **User to check:** a real fullscreen video/game; sleep → resume; unplug/replug a monitor; leave it running overnight (no crash, memory not growing)
+
 ## Added at the user's request (outside PLAN)
 
 - **Notch position (2026-11-13):** the centered pill covered browser tabs. First version was a tray Left/Center/Right switch; replaced the same day by dragging (below). The tray **Position** menu remains as presets: Top center / Top left (8 DIP gap) / Top right (150 DIP gap, keeps a maximized window's ─ □ ✕ clear) / Left side / Right side.
@@ -148,4 +169,5 @@ M4 verification (2026-11-13):
   - Saved as `"Dock": { Edge, Offset, FloatLeft, FloatTop, LastEdge, LastOffset }` (DIP relative to the primary monitor); bad values are repaired (`DockSettings.Normalize`). Snap and clamp maths (`DockGeometry`) are in Core with tests.
   - Verified on screen: drag to middle → floating; ✕ → back to top; drag to left edge (outline shown) → left dock, collapses to a vertical pill, hover reopens; drag to right edge → right dock; drag to top at x≈1055 → top dock there; floating and top positions survive a restart. Idle CPU after: 0.031 s / 60 s.
   - Known limit: docking uses the primary monitor only (PLAN v1); a floating panel can be dropped on another monitor but docks only to the primary one's edges.
+- **Swap tiles in edit mode (2026-11-13):** dropping a tile onto another swaps them. Both stay inside the cells they used together (no other tile moves) and end up in swapped reading order; sizes adapt — the arrangement that fills those cells best wins, preferring each tile to take the other's size/spot when it supports it. Impossible swaps (e.g. L-only Calendar into a 1-cell spot) show red and change nothing. Dropping a hidden tile onto a shown one replaces it (the old one becomes hidden). `GridLayout.TrySwap` / `TryReplace` in Core with tests. Verified on screen: Coffee→Notes, Timer(L)→Clock(S) (Clock became W, Timer S), Calendar→Disk refused, System→Notes replaced.
 - **Git fix:** the default .NET `.gitignore` has `*.app` (macOS bundles), which matched `src/Knob.App` case-insensitively, so no App source was committed before commit "fix: track src/Knob.App". The M0/M1 "feat" commits before it contain Core/tests/docs only; the App sources for both milestones are in that one fix commit. `.gitignore` now un-ignores `/src/Knob.App/`.

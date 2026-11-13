@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # Knob.App is our WPF project, not a macOS bundle (*.app above matches it case-insensitively)
 !/src/Knob.App/
+
+# Release output
+/publish/
