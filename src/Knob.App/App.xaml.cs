@@ -25,6 +25,7 @@ public partial class App : Application
     private CoffeeTile? _coffee;
     private NotesTile? _notes;
     private MediaSessionService? _media;
+    private ClipboardService? _clipboard;
     private JsonStore<LayoutData>? _layoutStore;
     private TileHost? _tileHost;
 
@@ -72,11 +73,13 @@ public partial class App : Application
         _notes = new NotesTile(KnobPaths.Notes, Dispatcher);
         _media = new MediaSessionService(Dispatcher);
         _ = _media.StartAsync();
+        _clipboard = new ClipboardService(KnobPaths.Clipboard, _settings.ClipboardMaxItems, clock, Dispatcher);
 
         var registry = new TileRegistry(
         [
             new TimerTile(_pomodoro),
             new MediaTile(_media, clock, Dispatcher),
+            new ClipboardTile(_clipboard),
             _coffee,
             _notes,
             new ClockTile(clock, _pillStatus!),
@@ -135,6 +138,7 @@ public partial class App : Application
         _notes?.Save();
         _coffee?.Set(false);
         _media?.Dispose();
+        _clipboard?.Dispose();
         if (_tileHost is not null) SaveLayout(_tileHost.Layout);
         _tray?.Dispose();
         _pillStatus?.Dispose();
