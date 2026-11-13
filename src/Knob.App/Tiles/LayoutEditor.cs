@@ -9,8 +9,9 @@ namespace Knob.App.Tiles;
 
 /// <summary>
 /// Edit-mode page. Works on a copy of the layout: tiles are shown as cards that can be dragged to another cell
-/// (green outline = fits, red = blocked → snaps back), resized with S/W/L (only sizes the tile supports) and hidden
-/// with ✕. Hidden tiles sit in the bottom strip and can be dragged back onto the grid.
+/// (accent outline = fits, red = blocked → snaps back) or dropped onto another tile to swap places (sizes adapt),
+/// resized with S/W/L (only sizes the tile supports) and hidden with ✕. Hidden tiles sit in the bottom strip and
+/// can be dragged onto an empty spot, or onto a tile to replace it.
 /// Done hands the copy back; Reset restores the default layout (still needs Done).
 /// </summary>
 public sealed class LayoutEditor : DockPanel
@@ -39,6 +40,7 @@ public sealed class LayoutEditor : DockPanel
     private Point _grabOffset;       // pointer offset inside the dragged card (px)
     private FrameworkElement? _dragVisual;
     private (int Col, int Row)? _target;
+    private string? _swapWith;       // tile under the pointer: drop = swap (or replace, from the hidden strip)
 
     static LayoutEditor()
     {
@@ -207,9 +209,27 @@ public sealed class LayoutEditor : DockPanel
         if (!inside || CellWidth <= 0)
         {
             _target = null;
+            _swapWith = null;
             _ghost.Visibility = Visibility.Collapsed;
             return;
         }
+
+        // Pointer over another tile → swap with it (hidden chip → replace it).
+        var hoverCol = Math.Clamp((int)(p.X / CellWidth), 0, GridLayout.Columns - 1);
+        var hoverRow = Math.Clamp((int)(p.Y / CellHeight), 0, GridLayout.Rows - 1);
+        var under = _layout.Placements.FirstOrDefault(pl => pl.TileId != _dragId && Covers(pl, hoverCol, hoverRow));
+        if (under is not null)
+        {
+            _swapWith = under.TileId;
+            _target = null;
+            var trial = _layout.Clone();
+            var swapOk = _dragFromHidden
+                ? trial.TryReplace(under.TileId, _dragId, SizesOf(_dragId))
+                : trial.TrySwap(_dragId, SizesOf(_dragId), under.TileId, SizesOf(under.TileId));
+            ShowGhost(under.Col, under.Row, under.Size, swapOk);
+            return;
+        }
+        _swapWith = null;
 
         // Top-left of the dragged card snapped to the nearest cell.
         var col = (int)Math.Round((p.X - _grabOffset.X) / CellWidth);
@@ -219,23 +239,46 @@ public sealed class LayoutEditor : DockPanel
         row = Math.Clamp(row, 0, GridLayout.Rows - 1);
         _target = (col, row);
 
-        var ok = _layout.CanPlace(_dragId, col, row, _dragSize);
+        ShowGhost(col, row, _dragSize, _layout.CanPlace(_dragId, col, row, _dragSize));
+    }
+
+    /// <summary>Footprint outline: accent = the drop will work, red = it won't. Shown clipped to the grid.</summary>
+    private void ShowGhost(int col, int row, TileSize size, bool ok)
+    {
+        var (w, h) = TileSizes.Span(size);
         _ghost.Background = ok ? OkBrush : BadBrush;
         _ghost.BorderBrush = ok ? Ui.Accent : Brushes.IndianRed;
         Grid.SetColumn(_ghost, col);
         Grid.SetRow(_ghost, row);
-        // Show the true footprint, even where it would stick out (clipped by the grid).
         Grid.SetColumnSpan(_ghost, Math.Min(w, GridLayout.Columns - col));
         Grid.SetRowSpan(_ghost, Math.Min(h, GridLayout.Rows - row));
         _ghost.Visibility = Visibility.Visible;
     }
+
+    private static bool Covers(TilePlacement p, int col, int row)
+    {
+        var (w, h) = TileSizes.Span(p.Size);
+        return col >= p.Col && col < p.Col + w && row >= p.Row && row < p.Row + h;
+    }
+
+    private IReadOnlyCollection<TileSize> SizesOf(string id) =>
+        _registry.TryGet(id, out var t) ? t.SupportedSizes.ToArray() : [TileSize.S];
 
     private void OnDragEnd(object sender, MouseButtonEventArgs e)
     {
         if (_dragId is null) return;
         var id = _dragId;
         var target = _target;
+        var swapWith = _swapWith;
         EndDrag();
+        if (swapWith is not null)
+        {
+            var swapped = _dragFromHidden
+                ? _layout.TryReplace(swapWith, id, SizesOf(id))
+                : _layout.TrySwap(id, SizesOf(id), swapWith, SizesOf(swapWith));
+            if (swapped) Rebuild();
+            return;
+        }
         if (target is { } t)
         {
             var changed = _dragFromHidden
@@ -251,6 +294,7 @@ public sealed class LayoutEditor : DockPanel
         _dragId = null;
         _dragVisual = null;
         _target = null;
+        _swapWith = null;
         _ghost.Visibility = Visibility.Collapsed;
         if (IsMouseCaptured) ReleaseMouseCapture();
     }

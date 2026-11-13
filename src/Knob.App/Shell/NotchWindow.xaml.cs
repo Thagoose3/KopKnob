@@ -134,6 +134,9 @@ public partial class NotchWindow : Window
         }
     }
 
+    /// <summary>Re-place the knob for the current monitors (after resume / unlock).</summary>
+    public void RefreshPlacement() => Reposition();
+
     /// <summary>Set before Show(): the (shared, persisted) dock settings this window reads and updates.</summary>
     public void UseDock(DockSettings dock)
     {

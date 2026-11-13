@@ -179,6 +179,82 @@ public class GridLayoutTests
         Assert.Empty(g.Placements);
     }
 
+    private static readonly TileSize[] SW = [TileSize.S, TileSize.W];
+    private static readonly TileSize[] WL = [TileSize.W, TileSize.L];
+    private static readonly TileSize[] SL = [TileSize.S, TileSize.L];
+    private static readonly TileSize[] OnlyL = [TileSize.L];
+
+    private static TilePlacement P(GridLayout g, string id) => g.Placements.Single(p => p.TileId == id);
+
+    [Fact]
+    public void TrySwap_SameSize_ExchangesPlaces()
+    {
+        var g = GridLayout.Default();
+        Assert.True(g.TrySwap("media", WL, "clipboard", WL));
+        Assert.Equal(new TilePlacement("media", 4, 0, TileSize.L), P(g, "media"));
+        Assert.Equal(new TilePlacement("clipboard", 2, 0, TileSize.L), P(g, "clipboard"));
+    }
+
+    [Fact]
+    public void TrySwap_DifferentSizes_FitsTheSharedSpace_InSwappedOrder()
+    {
+        var g = GridLayout.Default(); // coffee (0,2,S), notes (1,2,W)
+        Assert.True(g.TrySwap("coffee", SW, "notes", WL));
+        Assert.Equal(new TilePlacement("notes", 0, 2, TileSize.W), P(g, "notes"));
+        Assert.Equal(new TilePlacement("coffee", 2, 2, TileSize.S), P(g, "coffee"));
+        Assert.True(GridLayout.IsValid(g.Placements));
+    }
+
+    [Fact]
+    public void TrySwap_BigIntoSmallSlot_ShrinksToASupportedSize()
+    {
+        var g = GridLayout.Default(); // timer (0,0,L), clock (5,2,S)
+        Assert.True(g.TrySwap("timer", SL, "clock", SW));
+        Assert.Equal(new TilePlacement("timer", 5, 2, TileSize.S), P(g, "timer"));
+        var clock = P(g, "clock");
+        Assert.Equal((0, 0), (clock.Col, clock.Row));
+        Assert.Equal(TileSize.W, clock.Size);          // largest Clock size that fits the old Timer spot
+        Assert.True(GridLayout.IsValid(g.Placements));
+    }
+
+    [Fact]
+    public void TrySwap_Impossible_ReturnsFalse_AndLeavesLayoutAlone()
+    {
+        var g = GridLayout.Default();
+        var before = g.Placements.ToList();
+        Assert.False(g.TrySwap("calendar", OnlyL, "coffee", SW)); // L-only can't fit one cell
+        Assert.Equal(before, g.Placements);
+    }
+
+    [Fact]
+    public void TrySwap_NeverMovesOtherTiles()
+    {
+        var g = GridLayout.Default();
+        var others = g.Placements.Where(p => p.TileId is not ("timer" or "clock")).ToList();
+        Assert.True(g.TrySwap("timer", SL, "clock", SW));
+        Assert.All(others, o => Assert.Contains(o, g.Placements));
+        // and a pair that could only work by pushing others aside is refused
+        Assert.False(g.TrySwap("todo", WL, "disk", SW));
+    }
+
+    [Fact]
+    public void TryReplace_HiddenTileTakesTheSpot_OldOneIsHidden()
+    {
+        var g = GridLayout.Default();
+        Assert.True(g.TryReplace("notes", "monitor", WL));
+        Assert.Equal(new TilePlacement("monitor", 1, 2, TileSize.W), P(g, "monitor"));
+        Assert.DoesNotContain(g.Placements, p => p.TileId == "notes");
+    }
+
+    [Fact]
+    public void TryReplace_DoesNotFit_ReturnsFalse()
+    {
+        var g = GridLayout.Default();
+        var before = g.Placements.ToList();
+        Assert.False(g.TryReplace("disk", "monitor", WL)); // W/L can't fit a single cell
+        Assert.Equal(before, g.Placements);
+    }
+
     [Fact]
     public void Serialize_RoundTrip()
     {

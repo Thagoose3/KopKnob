@@ -27,6 +27,9 @@ public sealed class TesseractOcrService : IOcrService, IDisposable
 
     public TesseractOcrService()
     {
+        // In a single-file publish the assembly has no file location, so tell Tesseract where the
+        // x64/x86 native libraries are (next to Knob.exe).
+        TesseractEnviornment.CustomSearchPath = AppContext.BaseDirectory;
         _idleTimer = new Timer(_ => ReleaseEngine(), null, Timeout.Infinite, Timeout.Infinite);
     }
 

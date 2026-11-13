@@ -52,6 +52,7 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
+        InstallCrashHandlers();
 
         _settingsStore = new JsonStore<AppSettings>(KnobPaths.Settings);
         _settings = _settingsStore.Load();
@@ -96,6 +97,39 @@ public partial class App : Application
             _fullscreen = new FullscreenWatcher();
             _fullscreen.FullscreenChanged += on => _window.SetFullscreenHidden(on);
         }
+
+        // Monitors can change while asleep / locked (docking station, RDP): put the knob back in place.
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.SessionSwitch += OnSessionSwitch;
+    }
+
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == Microsoft.Win32.PowerModes.Resume) Dispatcher.BeginInvoke(() => _window?.RefreshPlacement());
+    }
+
+    private void OnSessionSwitch(object? sender, Microsoft.Win32.SessionSwitchEventArgs e)
+    {
+        if (e.Reason is Microsoft.Win32.SessionSwitchReason.SessionUnlock or Microsoft.Win32.SessionSwitchReason.ConsoleConnect
+            or Microsoft.Win32.SessionSwitchReason.RemoteConnect)
+            Dispatcher.BeginInvoke(() => _window?.RefreshPlacement());
+    }
+
+    /// <summary>Log unexpected errors to crash.log and keep running where that is possible.</summary>
+    private void InstallCrashHandlers()
+    {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            CrashLog.Write("UI thread", args.Exception);
+            args.Handled = true; // keep the knob alive
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            CrashLog.Write(args.IsTerminating ? "Background thread (terminating)" : "Background thread", args.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            CrashLog.Write("Unobserved task", args.Exception);
+            args.SetObserved();
+        };
     }
 
     private void BuildTiles()
@@ -247,6 +281,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.SessionSwitch -= OnSessionSwitch;
         _fullscreen?.Dispose();
         _hotkeys?.Dispose();
         _notes?.Save();

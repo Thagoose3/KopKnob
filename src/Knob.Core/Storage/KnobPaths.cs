@@ -12,4 +12,5 @@ public static class KnobPaths
     public static string Todo => Path.Combine(DataDir, "todo.json");
     public static string Clipboard => Path.Combine(DataDir, "clipboard.json");
     public static string CalcHistory => Path.Combine(DataDir, "calc-history.json");
+    public static string CrashLog => Path.Combine(DataDir, "crash.log");
 }

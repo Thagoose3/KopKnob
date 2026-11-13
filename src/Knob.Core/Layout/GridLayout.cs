@@ -80,6 +80,97 @@ public sealed class GridLayout
 
     public GridLayout Clone() => new(_placements);
 
+    /// <summary>
+    /// Swap two tiles (drop one onto the other). Both stay inside the cells they used together — no other tile moves —
+    /// and end up in swapped reading order. Sizes adapt: the best fit fills the shared cells as fully as possible,
+    /// preferring each tile to take the other's slot and size when it supports it. False if no arrangement fits.
+    /// </summary>
+    public bool TrySwap(string a, IReadOnlyCollection<TileSize> aSizes, string b, IReadOnlyCollection<TileSize> bSizes)
+    {
+        var ia = IndexOf(a);
+        var ib = IndexOf(b);
+        if (ia < 0 || ib < 0 || ia == ib) return false;
+        var pa = _placements[ia];
+        var pb = _placements[ib];
+
+        var region = Cells(pa).Concat(Cells(pb)).ToHashSet();
+        var aWasFirst = Before(pa, pb);
+
+        TilePlacement? bestA = null, bestB = null;
+        var bestScore = int.MinValue;
+        foreach (var candA in Candidates(a, aSizes, region))
+            foreach (var candB in Candidates(b, bSizes, region))
+            {
+                if (Overlaps(candA, candB)) continue;
+                if (aWasFirst ? !Before(candB, candA) : !Before(candA, candB)) continue; // order must flip
+
+                var score = 100 * (Area(candA.Size) + Area(candB.Size))
+                    + (candA.Size == pb.Size ? 10 : 0) + (candB.Size == pa.Size ? 10 : 0)
+                    + (candA.Col == pb.Col && candA.Row == pb.Row ? 5 : 0)
+                    + (candB.Col == pa.Col && candB.Row == pa.Row ? 5 : 0);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestA = candA;
+                    bestB = candB;
+                }
+            }
+
+        if (bestA is null || bestB is null) return false;
+        _placements[ia] = bestA;
+        _placements[ib] = bestB;
+        return true;
+    }
+
+    /// <summary>
+    /// Drop a hidden tile onto a shown one: the hidden tile takes its spot (largest supported size that fits
+    /// inside the old footprint, the same size if possible) and the shown one becomes hidden.
+    /// </summary>
+    public bool TryReplace(string shownId, string hiddenId, IReadOnlyCollection<TileSize> hiddenSizes)
+    {
+        var i = IndexOf(shownId);
+        if (i < 0 || IndexOf(hiddenId) >= 0) return false;
+        var old = _placements[i];
+        var region = Cells(old).ToHashSet();
+
+        var best = Candidates(hiddenId, hiddenSizes, region)
+            .OrderByDescending(p => Area(p.Size))
+            .ThenByDescending(p => p.Size == old.Size)
+            .ThenBy(p => p.Row).ThenBy(p => p.Col)
+            .FirstOrDefault();
+        if (best is null) return false;
+        _placements[i] = best;
+        return true;
+    }
+
+    /// <summary>Every placement of <paramref name="id"/> (any of its sizes) whose cells all lie inside <paramref name="region"/>.</summary>
+    private static IEnumerable<TilePlacement> Candidates(string id, IReadOnlyCollection<TileSize> sizes, HashSet<(int Col, int Row)> region)
+    {
+        foreach (var size in sizes.Distinct())
+            foreach (var (c, r) in region)
+            {
+                var p = new TilePlacement(id, c, r, size);
+                if (InBounds(p) && Cells(p).All(region.Contains)) yield return p;
+            }
+    }
+
+    private static IEnumerable<(int Col, int Row)> Cells(TilePlacement p)
+    {
+        var (w, h) = TileSizes.Span(p.Size);
+        for (var c = p.Col; c < p.Col + w; c++)
+            for (var r = p.Row; r < p.Row + h; r++)
+                yield return (c, r);
+    }
+
+    private static int Area(TileSize s)
+    {
+        var (w, h) = TileSizes.Span(s);
+        return w * h;
+    }
+
+    /// <summary>Reading order: top row first, then left to right.</summary>
+    private static bool Before(TilePlacement x, TilePlacement y) => x.Row < y.Row || (x.Row == y.Row && x.Col < y.Col);
+
     public static bool IsValid(IEnumerable<TilePlacement> placements)
     {
         var list = placements.ToList();
