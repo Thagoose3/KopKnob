@@ -19,6 +19,17 @@ M0 acceptance results:
 - [ ] **User to check:** change scaling 100% → 150% in Settings and confirm the pill stays top-center (changing display settings is left to the user)
 - [ ] **User to check:** tray menu (Open / Run at startup / Quit)
 
+M1 acceptance results (2026-11-13):
+
+- [x] `dotnet test` — 73/73 pass
+- [x] All M1 tiles render and work: Timer (start → ring/countdown, pill shows `25m`), Coffee (toggle → "Awake" + dot on pill), Notes (typing), To-do (add, tick → "Done 1/1"), Clock, Calendar (today highlighted, week starts per culture), Disk — screenshots
+- [x] Restart: notes, to-do and layout come back; Coffee starts off — screenshot after relaunch
+- [x] Click outside after typing closes the panel
+- [x] Idle CPU still 0.000 s / 60 s collapsed
+- [ ] **User to check (needs admin):** Coffee on → `powercfg /requests` lists Knob under DISPLAY and SYSTEM; off → gone
+- [ ] **User to check:** quit from the tray while Coffee is on → keep-awake released
+- [ ] **User to check:** let a 1-minute timer finish → sound + pill flashes 3×
+
 Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). WinForms is loaded for the tray icon; revisit in Task 5.2.
 
 ## M0
@@ -39,3 +50,18 @@ Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). W
 - **Battery** hidden when `NoSystemBattery` or status `Unknown`.
 - **Autostart:** the registry value is the source of truth; at startup `settings.RunAtStartup` is synced from it and the stored exe path is refreshed if enabled.
 - **Tray icon** is drawn in code (accent pill), so no `.ico` asset is needed yet.
+
+## M1
+
+- **Default layout changed** (PLAN allowed it): a month calendar does not fit a W tile (~168×70 DIP), so Calendar is L at (6,0); Clock shrinks to S. Row 2 is now `coffee S, notes W, todo W, clock S, disk S, launcher S`. Media/clipboard/launcher slots stay empty until M2/M3.
+- **TileSize stored as names** (`"L"`) in layout.json for hand-editing.
+- **Pomodoro `AddMinutes` only when not running**, and it resets the countdown; ± buttons are disabled while running.
+- **Pomodoro timer scheduling:** one `DispatcherTimer`. Panel open, or last minute → ticks on each countdown-second boundary. Collapsed with more than a minute left → a single one-shot to the 1-minute mark; the pill's `25m` text is refreshed by the existing minute tick. Countdown text always rounds up (`TimerFormat`), so `0:00` only shows when time is up.
+- **Pill auto-width:** the pill grows to fit (coffee dot, timer text); it animates only when the width actually changes.
+- **Panel background made fully opaque** (`#FF101014`); the 95% version let windows behind show through.
+- **Clock and Calendar use English text and the Gregorian calendar** even on a th-TH system (which would show 2569); week start still follows `CultureInfo.CurrentCulture`.
+- **Clock tile has no timer of its own:** it refreshes on panel open and on the shared minute tick while open.
+- **Icons** use Segoe Fluent Icons / Segoe MDL2 Assets glyphs (built into Windows), no image assets.
+- **Tile views subscribe on `Loaded` and unsubscribe on `Unloaded`**, so rebuilding views (M4) won't leak handlers.
+- **layout.json is written at startup if missing**, not only on clean exit.
+- **AtomicFile** (Core) holds the tmp-then-move write used by `JsonStore` and notes.txt.
