@@ -14,12 +14,17 @@
         TextOptions.TextFormattingMode="Display"
         FontFamily="{StaticResource UiFont}"
         Foreground="{StaticResource ForegroundBrush}">
-    <!-- The window is always panel-sized; only Surface changes size. Fully transparent pixels are click-through. -->
+    <!--
+      The window is always panel-sized; only Surface changes size/position inside it (pill ↔ panel).
+      Fully transparent pixels are click-through. Surface is placed with Margin from the top-left,
+      computed per dock edge in code.
+    -->
     <Grid>
         <Border x:Name="Surface"
-                HorizontalAlignment="Center" VerticalAlignment="Top"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
                 Width="150" Height="30"
                 CornerRadius="0,0,12,12"
+                BorderBrush="{StaticResource AccentBrush}" BorderThickness="0"
                 ClipToBounds="True">
             <Grid>
                 <Grid x:Name="PillContent" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -37,8 +42,17 @@
                                HorizontalAlignment="Center" Visibility="Collapsed" />
                 </Grid>
 
+                <!-- Floating mode only: grip + close (✕ docks it back to its last edge) -->
+                <Grid x:Name="FloatBar" Height="20" VerticalAlignment="Top" Visibility="Collapsed">
+                    <Border Width="36" Height="4" CornerRadius="2" Background="{StaticResource DimForegroundBrush}"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+                    <Button x:Name="FloatClose" Style="{StaticResource GhostButton}" Width="22" Height="18"
+                            HorizontalAlignment="Right" Margin="0,2,6,0" ToolTip="Dock back (Esc)">
+                        <TextBlock Text="&#xE711;" FontFamily="{StaticResource IconFont}" FontSize="9" />
+                    </Button>
+                </Grid>
+
                 <Grid x:Name="PanelContent" Opacity="0" Visibility="Collapsed" Margin="12,10,12,12">
-                    <!-- M1: TileHost goes here -->
                     <ContentPresenter x:Name="PanelHost" />
                 </Grid>
             </Grid>

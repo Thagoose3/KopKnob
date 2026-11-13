@@ -2,7 +2,6 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using Knob.App.Platform;
-using Knob.Core.Storage;
 
 namespace Knob.App.Shell;
 
@@ -13,7 +12,7 @@ public sealed class TrayIcon : IDisposable
     private readonly Icon _icon;
     private readonly ToolStripMenuItem _runAtStartup;
 
-    public TrayIcon(bool runAtStartup, NotchPosition position)
+    public TrayIcon(bool runAtStartup)
     {
         _icon = CreateIcon();
 
@@ -23,16 +22,18 @@ public sealed class TrayIcon : IDisposable
         var editLayout = new ToolStripMenuItem("Edit layout") { Enabled = false };
         menu.Items.Add(editLayout);
 
+        // Quick placements; the knob can also be dragged out of the open panel and dropped on an edge.
         var positionMenu = new ToolStripMenuItem("Position");
-        foreach (var p in Enum.GetValues<NotchPosition>())
+        foreach (var (label, preset) in new[]
+                 {
+                     ("Top center", DockPreset.TopCenter),
+                     ("Top left", DockPreset.TopLeft),
+                     ("Top right", DockPreset.TopRight),
+                     ("Left side", DockPreset.LeftSide),
+                     ("Right side", DockPreset.RightSide),
+                 })
         {
-            var item = new ToolStripMenuItem(p.ToString()) { Checked = p == position, Tag = p };
-            item.Click += (_, _) =>
-            {
-                foreach (ToolStripMenuItem other in positionMenu.DropDownItems) other.Checked = ReferenceEquals(other, item);
-                PositionChosen?.Invoke((NotchPosition)item.Tag!);
-            };
-            positionMenu.DropDownItems.Add(item);
+            positionMenu.DropDownItems.Add(label, null, (_, _) => PresetChosen?.Invoke(preset));
         }
         menu.Items.Add(positionMenu);
 
@@ -59,7 +60,7 @@ public sealed class TrayIcon : IDisposable
     public event Action? OpenRequested;
     public event Action? QuitRequested;
     public event Action<bool>? RunAtStartupToggled;
-    public event Action<NotchPosition>? PositionChosen;
+    public event Action<DockPreset>? PresetChosen;
 
     /// <summary>Setting this raises <see cref="RunAtStartupToggled"/> too, so handlers must be idempotent.</summary>
     public bool RunAtStartupChecked

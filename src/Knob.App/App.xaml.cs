@@ -60,7 +60,8 @@ public partial class App : Application
 
         _controller = new NotchController(_settings, Dispatcher);
         _window = new NotchWindow(_controller);
-        _window.Position = _settings.Position;
+        _window.UseDock(_settings.Dock);
+        _window.DockChanged += SaveSettings;
         _window.Show();
 
         _pillStatus = new PillStatus(_window, SystemClock.Instance);
@@ -73,16 +74,11 @@ public partial class App : Application
 
         BuildTiles();
 
-        _tray = new TrayIcon(_settings.RunAtStartup, _settings.Position);
+        _tray = new TrayIcon(_settings.RunAtStartup);
         _tray.OpenRequested += OnTrayOpen;
         _tray.QuitRequested += () => Shutdown();
         _tray.RunAtStartupToggled += OnRunAtStartupToggled;
-        _tray.PositionChosen += p =>
-        {
-            _settings.Position = p;
-            _window.Position = p;
-            SaveSettings();
-        };
+        _tray.PresetChosen += p => _window.ApplyPreset(p);
 
         RegisterHotkeys();
     }
