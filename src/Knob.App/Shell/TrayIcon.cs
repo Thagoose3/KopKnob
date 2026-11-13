@@ -2,17 +2,18 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using Knob.App.Platform;
+using Knob.Core.Storage;
 
 namespace Knob.App.Shell;
 
-/// <summary>Tray icon with Open / Edit layout (disabled until M4) / Run at startup / Quit.</summary>
+/// <summary>Tray icon with Open / Edit layout (disabled until M4) / Position / Run at startup / Quit.</summary>
 public sealed class TrayIcon : IDisposable
 {
     private readonly NotifyIcon _notifyIcon;
     private readonly Icon _icon;
     private readonly ToolStripMenuItem _runAtStartup;
 
-    public TrayIcon(bool runAtStartup)
+    public TrayIcon(bool runAtStartup, NotchPosition position)
     {
         _icon = CreateIcon();
 
@@ -21,6 +22,19 @@ public sealed class TrayIcon : IDisposable
 
         var editLayout = new ToolStripMenuItem("Edit layout") { Enabled = false };
         menu.Items.Add(editLayout);
+
+        var positionMenu = new ToolStripMenuItem("Position");
+        foreach (var p in Enum.GetValues<NotchPosition>())
+        {
+            var item = new ToolStripMenuItem(p.ToString()) { Checked = p == position, Tag = p };
+            item.Click += (_, _) =>
+            {
+                foreach (ToolStripMenuItem other in positionMenu.DropDownItems) other.Checked = ReferenceEquals(other, item);
+                PositionChosen?.Invoke((NotchPosition)item.Tag!);
+            };
+            positionMenu.DropDownItems.Add(item);
+        }
+        menu.Items.Add(positionMenu);
 
         _runAtStartup = new ToolStripMenuItem("Run at startup") { Checked = runAtStartup, CheckOnClick = true };
         _runAtStartup.CheckedChanged += (_, _) => RunAtStartupToggled?.Invoke(_runAtStartup.Checked);
@@ -45,6 +59,7 @@ public sealed class TrayIcon : IDisposable
     public event Action? OpenRequested;
     public event Action? QuitRequested;
     public event Action<bool>? RunAtStartupToggled;
+    public event Action<NotchPosition>? PositionChosen;
 
     /// <summary>Setting this raises <see cref="RunAtStartupToggled"/> too, so handlers must be idempotent.</summary>
     public bool RunAtStartupChecked

@@ -114,4 +114,8 @@ M3 verification (2026-11-13):
 - Found while testing: a selection drawn tight against the text cuts off Thai upper vowels/tone marks and hurts accuracy — leave a little margin.
 - [ ] **User to check:** scan Square / Dots / Rounded QR codes with a phone
 - [ ] **User to check:** OCR on a real web page, and the capture/OCR at 150 % display scaling
+
+## Added at the user's request (outside PLAN)
+
+- **Notch position (2026-11-13):** the centered pill covered browser tabs. Tray menu → **Position → Left / Center / Right**, saved as `"Position"` in settings.json (default Center; unknown values fall back to Center without resetting other settings). The window stays panel-sized; the pill is anchored to the chosen side inside it so the panel grows away from the screen edge. Gaps from the edge: Left 8 DIP, Right 150 DIP (keeps a maximized window's ─ □ ✕ buttons uncovered). Verified on screen: Right and Left both place the pill correctly and the open panel stays fully on screen.
 - **Git fix:** the default .NET `.gitignore` has `*.app` (macOS bundles), which matched `src/Knob.App` case-insensitively, so no App source was committed before commit "fix: track src/Knob.App". The M0/M1 "feat" commits before it contain Core/tests/docs only; the App sources for both milestones are in that one fix commit. `.gitignore` now un-ignores `/src/Knob.App/`.

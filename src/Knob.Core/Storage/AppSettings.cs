@@ -1,7 +1,14 @@
+using System.Text.Json.Serialization;
+
 namespace Knob.Core.Storage;
+
+/// <summary>Where the pill sits along the top edge of the primary monitor.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<NotchPosition>))]
+public enum NotchPosition { Left, Center, Right }
 
 public sealed class AppSettings : IJsonNormalizable
 {
+    public NotchPosition Position { get; set; } = NotchPosition.Center;
     public int HoverOpenDelayMs { get; set; } = 120;
     public int CloseDelayMs { get; set; } = 350;
     public bool HideOnFullscreen { get; set; } = true;
@@ -16,6 +23,7 @@ public sealed class AppSettings : IJsonNormalizable
         if (HoverOpenDelayMs < 0) HoverOpenDelayMs = 120;
         if (CloseDelayMs < 0) CloseDelayMs = 350;
         if (ClipboardMaxItems <= 0) ClipboardMaxItems = 50;
+        if (!Enum.IsDefined(Position)) Position = NotchPosition.Center;
     }
 }
 

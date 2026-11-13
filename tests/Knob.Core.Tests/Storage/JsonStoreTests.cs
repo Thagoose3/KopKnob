@@ -74,6 +74,27 @@ public sealed class JsonStoreTests : IDisposable
     }
 
     [Fact]
+    public void Position_DefaultsToCenter_AndRoundTripsAsName()
+    {
+        var store = new JsonStore<AppSettings>(PathFor("settings.json"));
+        Assert.Equal(NotchPosition.Center, store.Load().Position);
+
+        store.Save(new AppSettings { Position = NotchPosition.Right });
+        Assert.Contains("\"Right\"", File.ReadAllText(PathFor("settings.json")));
+        Assert.Equal(NotchPosition.Right, store.Load().Position);
+    }
+
+    [Fact]
+    public void Position_OutOfRangeNumber_FallsBackToCenter()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(PathFor("settings.json"), "{\"Position\":7,\"CloseDelayMs\":500}");
+        var loaded = new JsonStore<AppSettings>(PathFor("settings.json")).Load();
+        Assert.Equal(NotchPosition.Center, loaded.Position);
+        Assert.Equal(500, loaded.CloseDelayMs); // other settings kept
+    }
+
+    [Fact]
     public void Save_LeavesNoTmpFile_AndCreatesDirectory()
     {
         var store = new JsonStore<AppSettings>(PathFor("settings.json"));

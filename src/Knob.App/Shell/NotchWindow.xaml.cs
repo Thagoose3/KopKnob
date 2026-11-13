@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Knob.App.Platform;
+using Knob.Core.Storage;
 using Microsoft.Win32;
 
 namespace Knob.App.Shell;
@@ -47,6 +48,31 @@ public partial class NotchWindow : Window
         Deactivated += OnDeactivated;
 
         _controller.StateChanged += OnStateChanged;
+    }
+
+    // Gaps from the screen edge (DIP). Right leaves room for a maximized window's ─ □ ✕ buttons (3 × 46).
+    private const double LeftEdgeGap = 8, RightEdgeGap = 150;
+
+    private NotchPosition _position = NotchPosition.Center;
+
+    /// <summary>
+    /// Left / Center / Right along the top edge. The pill is anchored to the same side inside the
+    /// (panel-sized) window, so the panel grows away from the screen edge.
+    /// </summary>
+    public NotchPosition Position
+    {
+        get => _position;
+        set
+        {
+            _position = value;
+            Surface.HorizontalAlignment = value switch
+            {
+                NotchPosition.Left => HorizontalAlignment.Left,
+                NotchPosition.Right => HorizontalAlignment.Right,
+                _ => HorizontalAlignment.Center,
+            };
+            Reposition();
+        }
     }
 
     /// <summary>Content shown inside the expanded panel (TileHost from M1).</summary>
@@ -200,7 +226,7 @@ public partial class NotchWindow : Window
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
         Dispatcher.BeginInvoke(DispatcherPriority.Background, Reposition);
 
-    /// <summary>Top-center of the primary monitor, sized in physical pixels for that monitor's DPI.</summary>
+    /// <summary>Top edge of the primary monitor (left / center / right), sized in physical pixels for that monitor's DPI.</summary>
     private void Reposition()
     {
         if (_hwnd == IntPtr.Zero) return;
@@ -215,7 +241,12 @@ public partial class NotchWindow : Window
 
         int w = (int)Math.Round(PanelWidth * scale);
         int h = (int)Math.Round(PanelHeight * scale);
-        int x = mi.rcMonitor.Left + (mi.rcMonitor.Width - w) / 2;
+        int x = _position switch
+        {
+            NotchPosition.Left => mi.rcMonitor.Left + (int)Math.Round(LeftEdgeGap * scale),
+            NotchPosition.Right => mi.rcMonitor.Right - w - (int)Math.Round(RightEdgeGap * scale),
+            _ => mi.rcMonitor.Left + (mi.rcMonitor.Width - w) / 2,
+        };
         int y = mi.rcMonitor.Top;
 
         NativeMethods.SetWindowPos(_hwnd, NativeMethods.HWND_TOPMOST, x, y, w, h, NativeMethods.SWP_NOACTIVATE);
