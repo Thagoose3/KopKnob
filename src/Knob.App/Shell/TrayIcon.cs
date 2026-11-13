@@ -80,9 +80,19 @@ public sealed class TrayIcon : IDisposable
         _icon.Dispose();
     }
 
-    /// <summary>A small accent-colored pill; no .ico asset needed.</summary>
+    /// <summary>The app icon (Assets\knob.ico, embedded) at the tray's small-icon size; drawn pill as a fallback.</summary>
     private static Icon CreateIcon()
     {
+        try
+        {
+            using var stream = typeof(TrayIcon).Assembly.GetManifestResourceStream("Knob.ico");
+            if (stream is not null) return new Icon(stream, SystemInformation.SmallIconSize);
+        }
+        catch (Exception ex) when (ex is ArgumentException or System.IO.IOException)
+        {
+            // fall through to the drawn icon
+        }
+
         using var bmp = new Bitmap(32, 32);
         using (var g = Graphics.FromImage(bmp))
         {

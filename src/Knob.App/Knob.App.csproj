@@ -9,6 +9,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\knob.ico</ApplicationIcon>
     <AssemblyName>Knob</AssemblyName>
     <RootNamespace>Knob.App</RootNamespace>
     <LangVersion>12</LangVersion>
@@ -29,6 +30,11 @@
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.8.1" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
+  </ItemGroup>
+
+  <!-- App icon, also embedded so the tray can load it at the right small size -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\knob.ico" LogicalName="Knob.ico" />
   </ItemGroup>
 
   <!-- OCR language data (tesseract-ocr/tessdata_fast, Apache-2.0), next to the exe -->
