@@ -30,6 +30,17 @@ M1 acceptance results (2026-11-13):
 - [ ] **User to check:** quit from the tray while Coffee is on → keep-awake released
 - [ ] **User to check:** let a 1-minute timer finish → sound + pill flashes 3×
 
+M2 acceptance results (2026-11-13):
+
+- [x] `dotnet test` — 98/98 pass
+- [x] Clipboard: copied `knob-test-1/2/3` → shown 3, 2, 1; clicking item 1 moved it to the top, no duplicate (clipboard.json + screenshot)
+- [x] Clipboard privacy: text with `ExcludeClipboardContentFromMonitorProcessing`, and text with `CanIncludeInClipboardHistory = 0`, were not stored
+- [x] CPU vs Task Manager: 6 of 12 threads busy → Knob 95–100 %, `% Processor Utility` 92–106 % (Task Manager shows it capped at 100)
+- [x] Panel collapsed after using the monitor → Knob used 0.016 s CPU in 60 s
+- [x] Media tile shows "Nothing playing" with no session
+- [ ] **User to check:** play something in Spotify / a browser → title, artist, art and progress show; prev / play-pause / next work
+- [ ] **User to check:** copy a password from your password manager → it does not appear in the Clipboard tile
+
 Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). WinForms is loaded for the tray icon; revisit in Task 5.2.
 
 ## M0
@@ -65,4 +76,15 @@ Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). W
 - **Tile views subscribe on `Loaded` and unsubscribe on `Unloaded`**, so rebuilding views (M4) won't leak handlers.
 - **layout.json is written at startup if missing**, not only on clean exit.
 - **AtomicFile** (Core) holds the tmp-then-move write used by `JsonStore` and notes.txt.
+- **Stuck-open fix (after M1):** "hold open while typing" used `IsKeyboardFocusWithin`, which is also true when focus sits on the window itself or in a text box of a window that failed to activate (then no `Deactivated` ever comes). Now: hold only while the window `IsActive` **and** a `TextBoxBase` in it has focus; when the hold ends with the pointer outside, the close timer starts. Tray "Open" falls back to hover rules if activation fails.
+
+## M2
+
+- **CPU % uses PDH `\Processor Information(_Total)\% Processor Utility`**, the frequency-aware number Task Manager shows. Time-based `GetSystemTimes` (what PLAN specified) is correct for "% Processor Time" but on this turbo-boosting CPU reads ~55 % where Task Manager shows ~95 %, failing the ±5 % criterion. Raw PDH (not `PerformanceCounter`) is opened once on first use and only sampled while the monitor is visible. `GetSystemTimes` + `CpuUsageCalculator` stays as the fallback if PDH is unavailable.
+- **Minimal Launcher + `IToolHost` pulled forward from M3**: the monitor is not in the default layout and PLAN says it opens from the Launcher, so M2 couldn't be verified without them. Launcher currently has one button (System monitor); M3 adds Calc/QR/OCR. `PanelHost` swaps the tile grid for a full-panel tool page with a Back button; closing the panel returns to the tiles.
+- **Monitor polls while visible only** — as a placed tile with the panel open, or as the tool page — and re-baselines counters when it starts, so the first value isn't averaged over the idle gap.
+- **Clipboard privacy** also honours `Clipboard Viewer Ignore` (older convention some password managers use), besides the two formats in PLAN. Reading uses one `GetDataObject` snapshot; any failure other than "clipboard busy" drops the item rather than risk storing something private.
+- **Clipboard trim never drops the newest item**, even when every older item is pinned (found by test).
+- **Copy-back** isn't specially suppressed: the resulting clipboard update just moves the item to the top (no duplicate), which is also the expected "most recent" order.
+- **Media position** is extrapolated from the session's `LastUpdatedTime` while playing; the 1 s progress timer runs only while the panel is open and something is playing.
 - **Git fix:** the default .NET `.gitignore` has `*.app` (macOS bundles), which matched `src/Knob.App` case-insensitively, so no App source was committed before commit "fix: track src/Knob.App". The M0/M1 "feat" commits before it contain Core/tests/docs only; the App sources for both milestones are in that one fix commit. `.gitignore` now un-ignores `/src/Knob.App/`.

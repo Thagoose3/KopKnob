@@ -28,6 +28,7 @@ public partial class App : Application
     private ClipboardService? _clipboard;
     private JsonStore<LayoutData>? _layoutStore;
     private TileHost? _tileHost;
+    private PanelHost? _panelHost;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -74,6 +75,7 @@ public partial class App : Application
         _media = new MediaSessionService(Dispatcher);
         _ = _media.StartAsync();
         _clipboard = new ClipboardService(KnobPaths.Clipboard, _settings.ClipboardMaxItems, clock, Dispatcher);
+        var monitor = new MonitorTile(clock, Dispatcher);
 
         var registry = new TileRegistry(
         [
@@ -86,16 +88,26 @@ public partial class App : Application
             new CalendarTile(clock),
             new TodoTile(KnobPaths.Todo),
             new DiskTile(),
+            monitor,
+            new LauncherTile(
+            [
+                new LauncherTile.Entry("", "System monitor", () => monitor.ShowAsTool(_panelHost!)),
+            ]),
         ]);
 
         _layoutStore = new JsonStore<LayoutData>(KnobPaths.Layout);
         var layout = GridLayout.FromData(_layoutStore.Load());
         if (!File.Exists(KnobPaths.Layout)) SaveLayout(layout); // persist even if we never exit cleanly
         _tileHost = new TileHost(registry, layout);
-        _window!.PanelBody = _tileHost;
+        _panelHost = new PanelHost(_tileHost);
+        _window!.PanelBody = _panelHost;
 
         _controller!.PanelOpened += (_, _) => _tileHost.OnPanelOpened();
-        _controller.PanelClosed += (_, _) => _tileHost.OnPanelClosed();
+        _controller.PanelClosed += (_, _) =>
+        {
+            _panelHost.Back(); // next open starts on the tiles; stops tool-page polling
+            _tileHost.OnPanelClosed();
+        };
     }
 
     private void SaveLayout(GridLayout layout)
