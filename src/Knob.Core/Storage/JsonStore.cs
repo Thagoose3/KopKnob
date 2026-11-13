@@ -48,22 +48,7 @@ public sealed class JsonStore<T> where T : new()
         return value;
     }
 
-    public void Save(T value)
-    {
-        var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(_path));
-        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-        var tmp = _path + ".tmp";
-        try
-        {
-            File.WriteAllText(tmp, JsonSerializer.Serialize(value, Options));
-            File.Move(tmp, _path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(tmp)) File.Delete(tmp);
-        }
-    }
+    public void Save(T value) => AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(value, Options));
 
     private static T Fresh()
     {
