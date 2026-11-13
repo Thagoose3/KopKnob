@@ -103,6 +103,8 @@ public partial class App : Application
         _controller.RequestOpen();
         // Pointer is in the tray, not over the panel: activate so a click elsewhere (Deactivated) closes it.
         _window.EnableKeyboardInput();
+        // If Windows refused to activate us, nothing would ever close the panel: fall back to hover rules.
+        if (!_window.IsActive) _controller.PointerExited();
     }
 
     private void OnRunAtStartupToggled(bool enabled)

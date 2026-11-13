@@ -40,7 +40,9 @@ public partial class NotchWindow : Window
 
         PreviewMouseDown += OnPreviewMouseDown;
         PreviewKeyDown += OnPreviewKeyDown;
-        IsKeyboardFocusWithinChanged += (_, _) => _controller.HoldOpen = IsKeyboardFocusWithin;
+        AddHandler(Keyboard.GotKeyboardFocusEvent, new KeyboardFocusChangedEventHandler((_, _) => SyncHoldOpen()), handledEventsToo: true);
+        AddHandler(Keyboard.LostKeyboardFocusEvent, new KeyboardFocusChangedEventHandler((_, _) => SyncHoldOpen()), handledEventsToo: true);
+        Activated += (_, _) => SyncHoldOpen();
         Deactivated += OnDeactivated;
 
         _controller.StateChanged += OnStateChanged;
@@ -126,6 +128,7 @@ public partial class NotchWindow : Window
         if ((ex & NativeMethods.WS_EX_NOACTIVATE) != 0)
             NativeMethods.SetExStyle(_hwnd, ex & ~NativeMethods.WS_EX_NOACTIVATE);
         Activate();
+        SyncHoldOpen();
     }
 
     private void DisableKeyboardInput()
@@ -248,6 +251,14 @@ public partial class NotchWindow : Window
         _controller.HoldOpen = false;
         if (!_controller.PointerInside) _controller.RequestClose();
     }
+
+    /// <summary>
+    /// Keep the panel open only while the user can actually type: window active AND a text box focused.
+    /// (Focus on the window itself, or a text box in a window that failed to activate, must not hold it open —
+    /// in the latter case no Deactivated would ever arrive to close it.)
+    /// </summary>
+    private void SyncHoldOpen() =>
+        _controller.HoldOpen = IsActive && Keyboard.FocusedElement is TextBoxBase tb && IsAncestorOf(tb);
 
     private static T? FindAncestor<T>(DependencyObject? d) where T : DependencyObject
     {

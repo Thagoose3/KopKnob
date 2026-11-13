@@ -43,6 +43,7 @@ public sealed class NotchController
             if (_holdOpen == value) return;
             _holdOpen = value;
             if (value) _closeTimer.Stop();
+            else if (IsExpanded && !PointerInside) { _closeTimer.Stop(); _closeTimer.Start(); } // pointer already left
         }
     }
 
