@@ -99,11 +99,19 @@ Note for M5: working set was ~160 MB right after start (PLAN target < 120 MB). W
 - **Capture overlay** maps the dragged rectangle to screenshot pixels by ratio (screenshot is stretched to the overlay), so no DPI arithmetic is needed. It closes the panel first (220 ms) so the panel isn't in the screenshot. Losing focus cancels it.
 - **Launcher** now has 4 buttons: Calculator, QR code, Text capture, System monitor (tooltips show the hotkeys).
 
-M3 verification so far (2026-11-13, screen was locked part-way, UI checks pending):
+- **OCR preprocessing changed from PLAN** (PLAN: ×3 if selection < 60 px tall, else ×2; grayscale; invert dark). Measured on real Notepad text (Thai + English, ~11 px glyphs): ×2 and ×3 both scored 88.7 % (character similarity) and misread short Thai words as Latin (`ราคา` → `mm`, `บาท` → `uw`); ×4 + grayscale + **Otsu black/white threshold** scored 99 %. Now: ×4, reduced so the output stays ≤ ~6 MP (big selections stay fast), grayscale, invert if dark, Otsu binarize. Language order stays `tha+eng` (`eng+tha` puts a space between every Thai letter). `OcrPreprocess.ScaleFactor(w, h)` and `OtsuThreshold` are in Core with tests.
+- **OCR text cleanup** also drops leading blank lines and collapses runs of blank lines (Tesseract emits them around blocks).
+- Known limitation, per PLAN's rule: spaces *between* Thai words are removed too (Tesseract's bogus intra-word spaces can't be told apart from real ones).
 
-- [x] `dotnet test` — 167/167 pass (incl. every calculator case in PLAN)
-- [x] All three hotkeys registered by Knob (another process can't register them)
-- [x] Tesseract engine loads (native DLLs + tha/eng data). Rendered test images: `ภาษาไทยอ่านได้ไหม` read exactly; `Knob reads English text` (white on black) exact; `สวัสดีครับ Hello world ราคา 100 บาท` read as `สวัสดีครับ Hello world mm 100 บาท` — one Thai word missed. 33–77 ms per image after the engine is loaded.
-- [ ] Hotkeys from another app; Calculator UI; QR UI; capture overlay + OCR on a real web page at 100 % and 150 %
+M3 verification (2026-11-13):
+
+- [x] `dotnet test` — 170/170 pass (incl. every calculator case in PLAN)
+- [x] All three hotkeys owned by Knob (another process can't register them) and work with Notepad in front
+- [x] Calculator: hotkey opens with focus in the box; `(1200*7%)+15` shows `= 99` live; Enter → history + "Copied 99"; `1/0` → "Division by zero"; Esc closes
+- [x] QR: hotkey prefills clipboard text; Square/Dots/Rounded × colours render with solid finder patterns; Copy → clipboard has a 1024×1024 bitmap + PNG; Save… dialog opens and the panel stays open behind it
+- [x] Text capture end to end (hotkey → overlay → drag → pill "Copied N chars" → clipboard), well under 1 s including engine start
+- [x] OCR at web-like size (Notepad zoom 150 %): `สวัสดีครับยินดีต้อนรับส Knob / ราคา 100 บาทและ English mixed text 2026 / The quick brown fox jumps over the lazy dog` — only miss: `สู่` → `ส` (thin lower vowel). At 100 % Notepad size `บาท` is still sometimes misread.
+- Found while testing: a selection drawn tight against the text cuts off Thai upper vowels/tone marks and hurts accuracy — leave a little margin.
 - [ ] **User to check:** scan Square / Dots / Rounded QR codes with a phone
+- [ ] **User to check:** OCR on a real web page, and the capture/OCR at 150 % display scaling
 - **Git fix:** the default .NET `.gitignore` has `*.app` (macOS bundles), which matched `src/Knob.App` case-insensitively, so no App source was committed before commit "fix: track src/Knob.App". The M0/M1 "feat" commits before it contain Core/tests/docs only; the App sources for both milestones are in that one fix commit. `.gitignore` now un-ignores `/src/Knob.App/`.

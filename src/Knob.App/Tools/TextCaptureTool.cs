@@ -70,11 +70,11 @@ public sealed class TextCaptureTool(NotchWindow window, NotchController controll
         }
     }
 
-    /// <summary>Grayscale, upscale (×3 for short selections, else ×2), invert dark backgrounds → PNG.</summary>
+    /// <summary>Upscale (×4, capped), grayscale, invert dark backgrounds, Otsu black/white → PNG.</summary>
     internal static byte[] Prepare(Bitmap crop)
     {
         var invert = OcrPreprocess.ShouldInvert(MeanLuma(crop));
-        var scale = OcrPreprocess.ScaleFactor(crop.Height);
+        var scale = OcrPreprocess.ScaleFactor(crop.Width, crop.Height);
 
         // Luma weights per channel; inverted = 1 - luma.
         float a = invert ? -1f : 1f;
@@ -97,9 +97,44 @@ public sealed class TextCaptureTool(NotchWindow window, NotchController controll
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.DrawImage(crop, new Rectangle(0, 0, output.Width, output.Height), 0, 0, crop.Width, crop.Height, GraphicsUnit.Pixel, attrs);
         }
+        Binarize(output);
         using var ms = new MemoryStream();
         output.Save(ms, ImageFormat.Png);
         return ms.ToArray();
+    }
+
+    /// <summary>In-place Otsu threshold of a grey 24bpp bitmap (R = G = B).</summary>
+    private static void Binarize(Bitmap bmp)
+    {
+        var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+        var data = bmp.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+        try
+        {
+            var bytes = new byte[data.Stride * data.Height];
+            Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
+            var hist = new int[256];
+            for (var y = 0; y < data.Height; y++)
+            {
+                var row = y * data.Stride;
+                for (var x = 0; x < data.Width; x++) hist[bytes[row + x * 3]]++;
+            }
+            var t = OcrPreprocess.OtsuThreshold(hist);
+            for (var y = 0; y < data.Height; y++)
+            {
+                var row = y * data.Stride;
+                for (var x = 0; x < data.Width; x++)
+                {
+                    var i = row + x * 3;
+                    var v = bytes[i] > t ? (byte)255 : (byte)0;
+                    bytes[i] = bytes[i + 1] = bytes[i + 2] = v;
+                }
+            }
+            Marshal.Copy(bytes, 0, data.Scan0, bytes.Length);
+        }
+        finally
+        {
+            bmp.UnlockBits(data);
+        }
     }
 
     private static double MeanLuma(Bitmap bmp)
