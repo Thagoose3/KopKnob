@@ -181,6 +181,14 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - **Unroll animation:** two phases with keyframes — opening: the rolled scroll drops to full depth (140 ms), then unrolls along the edge (260 ms) as the rods slide apart; closing: rolls up first (200 ms), then lifts (130 ms). Content fades in during the unroll and out before the roll-up. Finite animations only; nothing runs once settled.
 - Verified: collapsed scroll pill renders (gold rods, red silk, time/battery); published build starts with the theme, no crash.log; idle 0.031 s CPU in 30 s. **Not verified by me:** the unroll frames — capturing them while the user was working also captured their browser and moved their cursor, so I stopped and deleted those captures. The user is to check the animation.
 
+### Scroll theme v2 (same day, from the user's reference image)
+
+- Follows the reference: **red silk frame, cream paper inside with a gold rule**, and **rollers with finials that overhang the paper** at both ends. Rollers (`ScrollRod`): red lacquer shaft with gold and jade bands, gold collars, **jade-green pointed finials** (the user asked to mix in a little green); the jade is also the theme's accent (active tab, today, play button) and Wukong's robe.
+- **Background painting** on the paper (`WukongArt.xaml`, original design, ~30 % opacity): the Monkey King bust with golden circlet, staff, gourd, and golden clouds along the bottom. Cards/buttons in this theme are slightly translucent so the painting shows through.
+- Because the paper is light, the theme's text is ink-dark; the pill (on the red silk) keeps light text. Places that hardcoded colours were fixed to use the theme: Music play button (accent + `AccentForegroundBrush`), Calendar's today, Coffee badge, Music progress track; Music page picks light or theme text by how dark the cover tint is.
+- Scroll geometry: Surface background is transparent; the red body is inset by the rod overhang; the panel is 304 DIP tall (vs 280) and the pill 46 DIP (it includes the finials).
+- Checked with an **offscreen render** of the real window visuals (a scratch tool referencing Knob.App renders to PNG; nothing shown on the user's screen, no cursor moves): pill and open panel (Home/Calendar) look as intended. Idle CPU after publishing: 0 s in 30 s; no crash.log. The unroll animation itself still needs the user's eye.
+
 ## Added at the user's request (outside PLAN)
 
 - **Notch position (2026-11-13):** the centered pill covered browser tabs. First version was a tray Left/Center/Right switch; replaced the same day by dragging (below). The tray **Position** menu remains as presets: Top center / Top left (8 DIP gap) / Top right (150 DIP gap, keeps a maximized window's ─ □ ✕ clear) / Left side / Right side.

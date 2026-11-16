@@ -4,6 +4,8 @@
     <Color x:Key="BackgroundColor">#FF101014</Color>
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
+    <!-- Text/icons drawn on top of the accent colour -->
+    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="TileBrush" Color="#1C1C22" />
     <SolidColorBrush x:Key="ControlBrush" Color="#2A2A33" />
     <SolidColorBrush x:Key="ControlHoverBrush" Color="#36363F" />

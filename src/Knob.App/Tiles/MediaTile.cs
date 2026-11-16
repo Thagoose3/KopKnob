@@ -73,7 +73,7 @@ public sealed class MediaTile : TileBase
         var left = new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) };
         bar.ColumnDefinitions.Add(done);
         bar.ColumnDefinitions.Add(left);
-        var track = new Border { Background = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)), CornerRadius = new CornerRadius(2) };
+        var track = new Border { Background = Ui.Control, Opacity = 0.7, CornerRadius = new CornerRadius(2) };
         Grid.SetColumnSpan(track, 2);
         bar.Children.Add(track);
         bar.Children.Add(new Border { Background = Ui.Fg, CornerRadius = new CornerRadius(2) });
@@ -87,8 +87,8 @@ public sealed class MediaTile : TileBase
         var prev = Ui.IconButton("", async (_, _) => await _media.PreviousAsync(), 36, 30, ghost: true);
         var next = Ui.IconButton("", async (_, _) => await _media.NextAsync(), 36, 30, ghost: true);
         var play = Ui.IconButton(Ui.IconPlay, async (_, _) => await _media.PlayPauseAsync(), 40, 40);
-        play.Background = Ui.Fg;
-        play.Foreground = Brushes.Black;
+        play.Background = Ui.Accent;
+        play.Foreground = Ui.AccentFg;
         foreach (var b in new[] { prev, play, next }) ((TextBlock)b.Content).FontSize = 14;
         var controls = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
         controls.Children.Add(prev);
@@ -136,9 +136,14 @@ public sealed class MediaTile : TileBase
             if (!ReferenceEquals(tintedFor, s.Thumbnail))
             {
                 tintedFor = s.Thumbnail;
-                tint.Background = s.Thumbnail is BitmapSource bmp && AverageColor(bmp) is Color c
+                var cover = s.Thumbnail is BitmapSource bmp ? AverageColor(bmp) : null;
+                tint.Background = cover is Color c
                     ? new LinearGradientBrush(Color.FromArgb(0xE6, c.R, c.G, c.B), Color.FromArgb(0x30, c.R, c.G, c.B), 0)
                     : Ui.Res<Brush>("TileBrush");
+                // Readable on any theme: light text on a dark cover tint, the theme's text otherwise.
+                var darkTint = cover is Color d && (0.299 * d.R + 0.587 * d.G + 0.114 * d.B) < 140;
+                title.Foreground = darkTint ? Brushes.White : Ui.Fg;
+                artist.Foreground = darkTint ? new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)) : Ui.Subtle;
             }
             prev.IsEnabled = s.CanPrevious;
             play.IsEnabled = s.CanPlayPause;

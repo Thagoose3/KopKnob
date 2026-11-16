@@ -80,7 +80,7 @@ public sealed class CalendarTile(IClock clock) : TileBase
             {
                 var isToday = d == today;
                 var text = Ui.Text(d.Day.ToString(CultureInfo.InvariantCulture), 10,
-                    isToday ? Ui.Fg : d.Month == _month ? Ui.Fg : Ui.Dim,
+                    isToday ? Ui.AccentFg : d.Month == _month ? Ui.Fg : Ui.Dim,
                     isToday ? FontWeights.Bold : null);
                 text.HorizontalAlignment = HorizontalAlignment.Center;
                 days.Children.Add(new Border

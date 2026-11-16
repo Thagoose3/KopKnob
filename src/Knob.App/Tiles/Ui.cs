@@ -33,6 +33,8 @@ internal static class Ui
     public static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
     public static Brush Accent => Res<Brush>("AccentBrush");
+    /// <summary>Text/icons placed on the accent colour.</summary>
+    public static Brush AccentFg => Res<Brush>("AccentForegroundBrush");
     public static Brush Fg => Res<Brush>("ForegroundBrush");
     public static Brush Subtle => Res<Brush>("SubtleForegroundBrush");
     public static Brush Dim => Res<Brush>("DimForegroundBrush");

@@ -23,8 +23,15 @@ public enum DockPreset { TopCenter, TopLeft, TopRight, LeftSide, RightSide }
 /// </summary>
 public partial class NotchWindow : Window
 {
-    private const double PillThickness = 30, MinPillLength = 150, MinSidePillLength = 100;
-    private const double PanelWidth = 720, PanelHeight = 280, WindowHeight = PanelHeight;
+    private const double MinPillLength = 150, MinSidePillLength = 100;
+    private const double DefaultPillThickness = 30, ScrollPillThickness = 46; // the scroll pill includes the rods' finials
+    private double _pillThickness = DefaultPillThickness;
+    private double PillThickness => _pillThickness;
+    private const double PanelWidth = 720;
+    private const double DefaultPanelHeight = 280, ScrollPanelHeight = 304; // the scroll's frame and rods need a little more room
+    private double _panelHeight = DefaultPanelHeight;
+    private double PanelHeight => _panelHeight;
+    private double WindowHeight => _panelHeight;
     private const double PresetGapLeft = 8, PresetGapRight = 150; // right keeps a maximized window's ─ □ ✕ clear
     private const double DragThreshold = 6;
     private static readonly Duration AnimDuration = new(TimeSpan.FromMilliseconds(180));
@@ -44,7 +51,6 @@ public partial class NotchWindow : Window
     private bool _dragging;
     private bool _scroll;
     private double _surfaceBorder;
-    private const double RodThickness = 11;
 
     public NotchWindow(NotchController controller)
     {
@@ -200,7 +206,7 @@ public partial class NotchWindow : Window
         PillContent.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         // LayoutTransform is applied in DesiredSize, so on the sides the length is the height.
         var content = IsSide ? PillContent.DesiredSize.Height : PillContent.DesiredSize.Width;
-        var rods = _scroll ? 2 * RodThickness : 0; // the scroll's rods take room at both ends
+        var rods = _scroll ? 2 * ScrollRod.Width : 0; // the scroll's rods take room at both ends
         return Math.Max(IsSide ? MinSidePillLength : MinPillLength, Math.Ceiling(content) + 28 + rods);
     }
 
@@ -394,7 +400,7 @@ public partial class NotchWindow : Window
     private void ApplyEdgeLook()
     {
         Surface.CornerRadius = _scroll
-            ? new CornerRadius(4)
+            ? new CornerRadius(0)
             : _dock.Edge switch
             {
                 DockEdge.Left => new CornerRadius(0, 12, 12, 0),
@@ -411,40 +417,77 @@ public partial class NotchWindow : Window
         FloatBar.Visibility = IsFloating ? Visibility.Visible : Visibility.Collapsed;
 
         var margin = IsFloating ? new Thickness(12, 20, 12, 12) : new Thickness(12, 10, 12, 12);
-        if (_scroll)
-        {
-            // Rods sit at the two ends of the unroll direction: left/right on the top edge or floating,
-            // top/bottom when docked to a side. Keep the content clear of them.
-            var rodsVertical = !IsSide;
-            foreach (var rod in new[] { RodA, RodB })
-            {
-                rod.Visibility = Visibility.Visible;
-                rod.Background = Ui.Res<Brush>(rodsVertical ? "ScrollRodVertical" : "ScrollRodHorizontal");
-                rod.Width = rodsVertical ? RodThickness : double.NaN;
-                rod.Height = rodsVertical ? double.NaN : RodThickness;
-                rod.HorizontalAlignment = rodsVertical ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
-                rod.VerticalAlignment = rodsVertical ? VerticalAlignment.Stretch : VerticalAlignment.Top;
-            }
-            RodB.HorizontalAlignment = rodsVertical ? HorizontalAlignment.Right : HorizontalAlignment.Stretch;
-            RodB.VerticalAlignment = rodsVertical ? VerticalAlignment.Stretch : VerticalAlignment.Bottom;
-            margin = rodsVertical
-                ? new Thickness(margin.Left + RodThickness, margin.Top, margin.Right + RodThickness, margin.Bottom)
-                : new Thickness(margin.Left, margin.Top + RodThickness, margin.Right, margin.Bottom + RodThickness);
-        }
+        if (_scroll) margin = LayOutScroll();
         PanelContent.Margin = margin;
     }
 
+    private const double ScrollFrame = 6;              // red silk visible around the paper
+    private static readonly Thickness ScrollPad = new(8, 6, 8, 6); // paper edge → content
+    private FrameworkElement? _rodA, _rodB;
+    private bool? _rodsVertical;
+
     /// <summary>
-    /// Journey-to-the-West "sutra scroll" look: gold rods at both ends, thin gold trim, a faint cloud motif,
-    /// and an unroll/roll-up animation. Call once, before Show().
+    /// Scroll geometry for the current edge. The rods sit at the two ends of the unroll direction (left/right on the
+    /// top edge or floating, top/bottom on a side dock) and overhang the body; the paper sits inside a red frame.
+    /// Returns the content margin.
+    /// </summary>
+    private Thickness LayOutScroll()
+    {
+        var vertical = !IsSide;
+        if (_rodsVertical != vertical)
+        {
+            if (_rodA is not null) SurfaceGrid.Children.Remove(_rodA);
+            if (_rodB is not null) SurfaceGrid.Children.Remove(_rodB);
+            _rodA = ScrollRod.Create(vertical);
+            _rodB = ScrollRod.Create(vertical);
+            // Right after the body, under the pill text and the pages.
+            SurfaceGrid.Children.Insert(1, _rodA);
+            SurfaceGrid.Children.Insert(2, _rodB);
+            _rodsVertical = vertical;
+        }
+        _rodA!.HorizontalAlignment = vertical ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+        _rodA.VerticalAlignment = vertical ? VerticalAlignment.Stretch : VerticalAlignment.Top;
+        _rodB!.HorizontalAlignment = vertical ? HorizontalAlignment.Right : HorizontalAlignment.Stretch;
+        _rodB.VerticalAlignment = vertical ? VerticalAlignment.Stretch : VerticalAlignment.Bottom;
+
+        double r = ScrollRod.Width, o = ScrollRod.Overhang, f = ScrollFrame;
+        var extraTop = IsFloating ? 8 : 0; // room for the floating grip / ✕
+        ScrollBody.Margin = vertical ? new Thickness(r / 2, o, r / 2, o) : new Thickness(o, r / 2, o, r / 2);
+        ScrollPaper.Margin = new Thickness(-ScrollPad.Left, -ScrollPad.Top, -ScrollPad.Right, -ScrollPad.Bottom);
+        return vertical
+            ? new Thickness(r + f + ScrollPad.Left, o + f + ScrollPad.Top + extraTop, r + f + ScrollPad.Right, o + f + ScrollPad.Bottom)
+            : new Thickness(o + f + ScrollPad.Left, r + f + ScrollPad.Top, o + f + ScrollPad.Right, r + f + ScrollPad.Bottom);
+    }
+
+    /// <summary>
+    /// Journey-to-the-West "sutra scroll" look: red silk body on red-lacquer rods with gold bands and jade finials,
+    /// cream paper with a gold rule and a faded Monkey King painting, light pill text, and the unroll animation.
+    /// Call once, before Show().
     /// </summary>
     public void UseScrollTheme()
     {
         _scroll = true;
-        Surface.BorderBrush = Ui.Res<Brush>("ScrollTrimBrush");
-        _surfaceBorder = 1.2;
-        Surface.BorderThickness = new Thickness(_surfaceBorder);
-        CloudMotif.Visibility = Visibility.Visible;
+        _pillThickness = ScrollPillThickness;
+        _panelHeight = ScrollPanelHeight;
+        Height = WindowHeight;
+        _surfaceBorder = 0;
+        Surface.BorderThickness = new Thickness(0);
+
+        ScrollBody.Visibility = Visibility.Visible;
+        ScrollBody.Background = Ui.Res<Brush>("ScrollBodyBrush");
+        ScrollBody.BorderBrush = Ui.Res<Brush>("ScrollTrimBrush");
+        ScrollPaper.Visibility = Visibility.Visible;
+        ScrollPaper.Background = Ui.Res<Brush>("ScrollPaperBrush");
+        ScrollPaper.BorderBrush = Ui.Res<Brush>("ScrollTrimBrush");
+
+        // The pill shows on the red silk: light text there, ink text on the paper.
+        var pillText = Ui.Res<Brush>("ScrollPillTextBrush");
+        TimeText.Foreground = pillText;
+        MessageText.Foreground = pillText;
+        TimerText.Foreground = Ui.Res<Brush>("ScrollTrimBrush");
+        BatteryText.Foreground = Ui.Res<Brush>("ScrollPillSubtleBrush");
+        CoffeeDot.Fill = Ui.Res<Brush>("ScrollTrimBrush");
+
         ApplyEdgeLook();
         if (_hwnd != IntPtr.Zero) Reposition();
     }

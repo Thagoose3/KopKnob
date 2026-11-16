@@ -144,6 +144,7 @@ internal static class HomePage
         {
             coffeeSub.Text = coffee.IsOn ? "Keeping the PC awake" : "Off — PC can sleep";
             coffeeBadge.Background = coffee.IsOn ? Ui.Accent : Ui.Control;
+            ((TextBlock)coffeeBadge.Child).Foreground = coffee.IsOn ? Ui.AccentFg : Ui.Fg;
         }
 
         // Disk — click to open the drive
