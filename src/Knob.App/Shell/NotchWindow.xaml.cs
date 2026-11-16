@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Knob.App.Platform;
+using Knob.App.Tiles;
 using Knob.Core.Shell;
 using Microsoft.Win32;
 
@@ -41,6 +42,9 @@ public partial class NotchWindow : Window
     private double _pillCentre;           // pill centre along its edge, DIP inside the window
     private Point? _dragPending;
     private bool _dragging;
+    private bool _scroll;
+    private double _surfaceBorder;
+    private const double RodThickness = 11;
 
     public NotchWindow(NotchController controller)
     {
@@ -196,7 +200,8 @@ public partial class NotchWindow : Window
         PillContent.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         // LayoutTransform is applied in DesiredSize, so on the sides the length is the height.
         var content = IsSide ? PillContent.DesiredSize.Height : PillContent.DesiredSize.Width;
-        return Math.Max(IsSide ? MinSidePillLength : MinPillLength, Math.Ceiling(content) + 28);
+        var rods = _scroll ? 2 * RodThickness : 0; // the scroll's rods take room at both ends
+        return Math.Max(IsSide ? MinSidePillLength : MinPillLength, Math.Ceiling(content) + 28 + rods);
     }
 
     /// <summary>Grow/shrink the collapsed pill to fit its content (animates only when the length really changes).</summary>
@@ -388,13 +393,15 @@ public partial class NotchWindow : Window
     /// <summary>Corner rounding, pill orientation and the floating header for the current edge.</summary>
     private void ApplyEdgeLook()
     {
-        Surface.CornerRadius = _dock.Edge switch
-        {
-            DockEdge.Left => new CornerRadius(0, 12, 12, 0),
-            DockEdge.Right => new CornerRadius(12, 0, 0, 12),
-            DockEdge.Floating => new CornerRadius(12),
-            _ => new CornerRadius(0, 0, 12, 12),
-        };
+        Surface.CornerRadius = _scroll
+            ? new CornerRadius(4)
+            : _dock.Edge switch
+            {
+                DockEdge.Left => new CornerRadius(0, 12, 12, 0),
+                DockEdge.Right => new CornerRadius(12, 0, 0, 12),
+                DockEdge.Floating => new CornerRadius(12),
+                _ => new CornerRadius(0, 0, 12, 12),
+            };
         PillContent.LayoutTransform = _dock.Edge switch
         {
             DockEdge.Left => new RotateTransform(-90),
@@ -402,7 +409,44 @@ public partial class NotchWindow : Window
             _ => Transform.Identity,
         };
         FloatBar.Visibility = IsFloating ? Visibility.Visible : Visibility.Collapsed;
-        PanelContent.Margin = IsFloating ? new Thickness(12, 20, 12, 12) : new Thickness(12, 10, 12, 12);
+
+        var margin = IsFloating ? new Thickness(12, 20, 12, 12) : new Thickness(12, 10, 12, 12);
+        if (_scroll)
+        {
+            // Rods sit at the two ends of the unroll direction: left/right on the top edge or floating,
+            // top/bottom when docked to a side. Keep the content clear of them.
+            var rodsVertical = !IsSide;
+            foreach (var rod in new[] { RodA, RodB })
+            {
+                rod.Visibility = Visibility.Visible;
+                rod.Background = Ui.Res<Brush>(rodsVertical ? "ScrollRodVertical" : "ScrollRodHorizontal");
+                rod.Width = rodsVertical ? RodThickness : double.NaN;
+                rod.Height = rodsVertical ? double.NaN : RodThickness;
+                rod.HorizontalAlignment = rodsVertical ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+                rod.VerticalAlignment = rodsVertical ? VerticalAlignment.Stretch : VerticalAlignment.Top;
+            }
+            RodB.HorizontalAlignment = rodsVertical ? HorizontalAlignment.Right : HorizontalAlignment.Stretch;
+            RodB.VerticalAlignment = rodsVertical ? VerticalAlignment.Stretch : VerticalAlignment.Bottom;
+            margin = rodsVertical
+                ? new Thickness(margin.Left + RodThickness, margin.Top, margin.Right + RodThickness, margin.Bottom)
+                : new Thickness(margin.Left, margin.Top + RodThickness, margin.Right, margin.Bottom + RodThickness);
+        }
+        PanelContent.Margin = margin;
+    }
+
+    /// <summary>
+    /// Journey-to-the-West "sutra scroll" look: gold rods at both ends, thin gold trim, a faint cloud motif,
+    /// and an unroll/roll-up animation. Call once, before Show().
+    /// </summary>
+    public void UseScrollTheme()
+    {
+        _scroll = true;
+        Surface.BorderBrush = Ui.Res<Brush>("ScrollTrimBrush");
+        _surfaceBorder = 1.2;
+        Surface.BorderThickness = new Thickness(_surfaceBorder);
+        CloudMotif.Visibility = Visibility.Visible;
+        ApplyEdgeLook();
+        if (_hwnd != IntPtr.Zero) Reposition();
     }
 
     // ───────────────────────── open / close ─────────────────────────
@@ -424,14 +468,85 @@ public partial class NotchWindow : Window
         var gen = ++_animGeneration;
         if (open) PanelContent.Visibility = Visibility.Visible;
 
-        SetSurface(SurfaceTarget(open), animate: true, completed: () =>
+        void Done()
         {
             if (gen != _animGeneration) return; // superseded by a newer animation
             if (!open) PanelContent.Visibility = Visibility.Collapsed;
             _controller.AnimationCompleted();
-        });
+        }
+
+        if (_scroll)
+        {
+            Unroll(SurfaceTarget(open), open, Done);
+            // Content appears while the scroll unrolls and disappears before it rolls up.
+            PanelContent.BeginAnimation(OpacityProperty, open
+                ? new DoubleAnimation(1, new Duration(UnrollAlong)) { BeginTime = UnrollAcross }
+                : new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(120))));
+            PillContent.BeginAnimation(OpacityProperty, open
+                ? new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(100)))
+                : new DoubleAnimation(1, new Duration(TimeSpan.FromMilliseconds(120))) { BeginTime = RollAlong });
+            return;
+        }
+
+        SetSurface(SurfaceTarget(open), animate: true, completed: Done);
         PanelContent.BeginAnimation(OpacityProperty, new DoubleAnimation(open ? 1 : 0, AnimDuration));
         PillContent.BeginAnimation(OpacityProperty, new DoubleAnimation(open ? 0 : 1, AnimDuration));
+    }
+
+    private static readonly TimeSpan UnrollAcross = TimeSpan.FromMilliseconds(140);
+    private static readonly TimeSpan UnrollAlong = TimeSpan.FromMilliseconds(260);
+    private static readonly TimeSpan RollAlong = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan RollAcross = TimeSpan.FromMilliseconds(130);
+
+    /// <summary>
+    /// Two-phase scroll animation. Opening: the rolled scroll first drops to full height ("across" the dock edge),
+    /// then unrolls along it, the rods sliding apart. Closing: rolls up along the edge first, then lifts away.
+    /// Finite keyframe animations — nothing runs once it settles.
+    /// </summary>
+    private void Unroll((double W, double H, Thickness M) t, bool open, Action completed)
+    {
+        var w0 = double.IsNaN(Surface.Width) ? Surface.ActualWidth : Surface.Width;
+        var h0 = double.IsNaN(Surface.Height) ? Surface.ActualHeight : Surface.Height;
+        var m0 = Surface.Margin;
+
+        // "Along" = the direction the scroll unrolls (width on the top edge / floating, height on the sides).
+        var alongIsWidth = !IsSide;
+        var first = open ? UnrollAcross : RollAlong;
+        var total = first + (open ? UnrollAlong : RollAcross);
+        var acrossFirst = open;
+
+        // Which property moves in which phase.
+        var widthFirst = alongIsWidth ? !acrossFirst : acrossFirst;
+        var heightFirst = !widthFirst;
+
+        DoubleAnimationUsingKeyFrames Dim(double from, double to, bool movesFirst)
+        {
+            var a = new DoubleAnimationUsingKeyFrames { Duration = new Duration(total) };
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            if (movesFirst)
+            {
+                a.KeyFrames.Add(new EasingDoubleKeyFrame(to, KeyTime.FromTimeSpan(first), ease));
+                a.KeyFrames.Add(new DiscreteDoubleKeyFrame(to, KeyTime.FromTimeSpan(total)));
+            }
+            else
+            {
+                a.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(first)));
+                a.KeyFrames.Add(new EasingDoubleKeyFrame(to, KeyTime.FromTimeSpan(total), ease));
+            }
+            return a;
+        }
+
+        // Margin: the horizontal part follows width, the vertical part follows height.
+        var mid = new Thickness(widthFirst ? t.M.Left : m0.Left, heightFirst ? t.M.Top : m0.Top, 0, 0);
+        var margin = new ThicknessAnimationUsingKeyFrames { Duration = new Duration(total) };
+        margin.KeyFrames.Add(new EasingThicknessKeyFrame(mid, KeyTime.FromTimeSpan(first), new CubicEase { EasingMode = EasingMode.EaseOut }));
+        margin.KeyFrames.Add(new EasingThicknessKeyFrame(t.M, KeyTime.FromTimeSpan(total), new CubicEase { EasingMode = EasingMode.EaseOut }));
+
+        var width = Dim(w0, t.W, widthFirst);
+        width.Completed += (_, _) => completed();
+        Surface.BeginAnimation(WidthProperty, width);
+        Surface.BeginAnimation(HeightProperty, Dim(h0, t.H, heightFirst));
+        Surface.BeginAnimation(MarginProperty, margin);
     }
 
     // ───────────────────────── drag out / dock ─────────────────────────
@@ -499,7 +614,7 @@ public partial class NotchWindow : Window
         finally
         {
             _dragging = false;
-            Surface.BorderThickness = new Thickness(0);
+            Surface.BorderThickness = new Thickness(_surfaceBorder);
         }
         FinishDrag();
     }
@@ -515,7 +630,7 @@ public partial class NotchWindow : Window
 
     /// <summary>While dragging: accent outline when releasing here would dock to an edge.</summary>
     private void UpdateSnapPreview() =>
-        Surface.BorderThickness = new Thickness(SnapEdgeAtCursor() is null ? 0 : 2);
+        Surface.BorderThickness = new Thickness(SnapEdgeAtCursor() is null ? _surfaceBorder : 2.5);
 
     private void FinishDrag()
     {

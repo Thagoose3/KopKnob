@@ -84,6 +84,24 @@ public sealed class JsonStoreTests : IDisposable
     }
 
     [Fact]
+    public void Theme_DefaultsToDefault_RoundTrips_AndUnknownFallsBack()
+    {
+        var store = new JsonStore<AppSettings>(PathFor("settings.json"));
+        Assert.Equal(AppSettings.ThemeDefault, store.Load().Theme);
+
+        store.Save(new AppSettings { Theme = AppSettings.ThemeScroll });
+        Assert.Equal(AppSettings.ThemeScroll, store.Load().Theme);
+
+        File.WriteAllText(PathFor("settings.json"), "{\"Theme\":\"Neon\",\"CloseDelayMs\":500}");
+        var loaded = store.Load();
+        Assert.Equal(AppSettings.ThemeDefault, loaded.Theme);
+        Assert.Equal(500, loaded.CloseDelayMs);
+
+        File.WriteAllText(PathFor("settings.json"), "{\"Theme\":\"scroll\"}");
+        Assert.Equal(AppSettings.ThemeScroll, store.Load().Theme); // case-insensitive
+    }
+
+    [Fact]
     public void Save_LeavesNoTmpFile_AndCreatesDirectory()
     {
         var store = new JsonStore<AppSettings>(PathFor("settings.json"));

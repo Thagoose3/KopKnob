@@ -32,7 +32,8 @@ dotnet publish src/Knob.App -c Release -r win-x64 --self-contained false -p:Publ
 - **Pages:** the panel shows one page at a time; switch with the tab bar along the bottom (the open tab shows its name). The last tab is remembered.
 - **Customize tabs:** ··· in the panel's top-right corner, or tray → **Edit layout**. Tick to show/hide a tab, arrows to change the order.
 - Hidden automatically while a fullscreen app (video, game, slideshow) is in front.
-- Tray menu: Open · Edit layout · Position · Run at startup · Quit.
+- **Themes:** tray → Theme → Default or **Sutra scroll** (Journey to the West: lacquer red and gold, the knob is a rolled scroll that unrolls when it opens). Switching restarts Knob.
+- Tray menu: Open · Edit layout · Position · Theme · Run at startup · Quit.
 
 ### Pages
 

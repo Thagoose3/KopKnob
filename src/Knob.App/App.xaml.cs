@@ -58,8 +58,14 @@ public partial class App : Application
         StartupRegistration.RefreshPathIfEnabled();
         _settings.RunAtStartup = StartupRegistration.IsEnabled();
 
+        // Theme colours must be in place before any window or view reads them.
+        var scrollTheme = _settings.Theme == AppSettings.ThemeScroll;
+        if (scrollTheme)
+            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("Themes/Scroll.xaml", UriKind.Relative) });
+
         _controller = new NotchController(_settings, Dispatcher);
         _window = new NotchWindow(_controller);
+        if (scrollTheme) _window.UseScrollTheme();
         _window.UseDock(_settings.Dock);
         _window.DockChanged += SaveSettings;
         _window.Show();
@@ -74,7 +80,8 @@ public partial class App : Application
 
         BuildPages();
 
-        _tray = new TrayIcon(_settings.RunAtStartup);
+        _tray = new TrayIcon(_settings.RunAtStartup, _settings.Theme);
+        _tray.ThemeChosen += ChangeTheme;
         _tray.OpenRequested += OnTrayOpen;
         _tray.QuitRequested += () => Shutdown();
         _tray.RunAtStartupToggled += OnRunAtStartupToggled;
@@ -228,6 +235,35 @@ public partial class App : Application
         SaveSettings();
     }
 
+    /// <summary>
+    /// Themes are applied at startup (every view reads its colours once), so switching saves the choice and
+    /// restarts Knob. The single-instance mutex is released first so the new process can take it.
+    /// </summary>
+    private void ChangeTheme(string theme)
+    {
+        if (theme == _settings.Theme) return;
+        _settings.Theme = theme;
+        SaveSettings();
+        _notes?.Save();
+
+        if (_mutex is not null)
+        {
+            _mutex.ReleaseMutex();
+            _mutex.Dispose();
+            _mutex = null;
+        }
+        try
+        {
+            if (Environment.ProcessPath is string exe)
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = false });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            CrashLog.Write("Restart after theme change", ex);
+        }
+        Shutdown();
+    }
+
     private void SaveSettings()
     {
         try { _settingsStore?.Save(_settings); }
@@ -249,9 +285,9 @@ public partial class App : Application
         _tray?.Dispose();
         _pillStatus?.Dispose();
         _window?.Close();
+        if (_settingsStore is not null) SaveSettings();
         if (_mutex is not null)
         {
-            SaveSettings();
             _mutex.ReleaseMutex();
             _mutex.Dispose();
         }

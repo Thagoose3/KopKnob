@@ -4,6 +4,12 @@ namespace Knob.Core.Storage;
 
 public sealed class AppSettings : IJsonNormalizable
 {
+    public const string ThemeDefault = "Default";
+    /// <summary>Journey-to-the-West "sutra scroll" look: lacquer red, gold rods, unrolls when it opens.</summary>
+    public const string ThemeScroll = "Scroll";
+    public static readonly string[] Themes = [ThemeDefault, ThemeScroll];
+
+    public string Theme { get; set; } = ThemeDefault;
     public int HoverOpenDelayMs { get; set; } = 120;
     public int CloseDelayMs { get; set; } = 350;
     public bool HideOnFullscreen { get; set; } = true;
@@ -15,6 +21,7 @@ public sealed class AppSettings : IJsonNormalizable
 
     public void Normalize()
     {
+        Theme = Themes.FirstOrDefault(t => string.Equals(t, Theme, StringComparison.OrdinalIgnoreCase)) ?? ThemeDefault;
         Tabs ??= new TabSettings();
         Tabs.Normalize(TabSettings.DefaultOrder);
         Hotkeys ??= new HotkeySettings();

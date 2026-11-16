@@ -171,6 +171,16 @@ The user asked to switch from the movable tile grid to one page at a time with a
 - **Follow-up (same day):** the big Home clock looked jagged — it was a small view scaled up by a `Viewbox` while the window renders text in WPF "Display" mode (hinted for small sizes). Home now draws the clock at its real size (76 px), and scaled/large content (Home, Music, Timer, Calendar, System) uses `TextFormattingMode.Ideal`. Home was redone as cards (badge icon + title + status): Coffee, **Local Disk — click opens the drive in File Explorer**, Capture text (shows its hotkey).
 - **System page** is now four cards with 60-second graphs: CPU (name from the registry), Memory (used of total), **GPU** (3D load summed over all `\GPU Engine(*engtype_3D)\Utilization Percentage` instances, VRAM from `\GPU Adapter Memory(*)\Dedicated Usage` — the counters Task Manager uses; card name and total VRAM from the display-adapter registry key, picking the adapter with the most VRAM), Network (↓ and ↑ with two lines). Sampling still runs only while the page is shown (0 s CPU in 60 s after visiting it). Note: 3D load is summed across GPUs (integrated + discrete) and capped at 100 %.
 
+## Theme: "Sutra scroll" (2026-11-16, user request)
+
+The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi and "cool" Monkey King — kept as sketches only, not in the app) they chose a **theme where Knob itself is a sutra scroll**:
+
+- Tray → **Theme → Default / Sutra scroll**, stored as `"Theme"` in settings.json (unknown values → Default; tested). Switching saves and **restarts Knob** (the single-instance mutex is released first), because every view reads its colours once at creation.
+- `Themes/Scroll.xaml` is merged after `Dark.xaml` and overrides the palette: lacquer red-brown background, aged-paper text, gold accent, gold trim, gold rod gradients. Control styles in `Dark.xaml` now use `DynamicResource` for brushes so a later theme can override them.
+- Look: two gold rods at the ends of the unroll direction (left/right on the top edge or floating; top/bottom on a side dock), 1.2 px gold border, square-ish corners, faint auspicious-cloud outline behind the pages. The pill is the rolled-up scroll.
+- **Unroll animation:** two phases with keyframes — opening: the rolled scroll drops to full depth (140 ms), then unrolls along the edge (260 ms) as the rods slide apart; closing: rolls up first (200 ms), then lifts (130 ms). Content fades in during the unroll and out before the roll-up. Finite animations only; nothing runs once settled.
+- Verified: collapsed scroll pill renders (gold rods, red silk, time/battery); published build starts with the theme, no crash.log; idle 0.031 s CPU in 30 s. **Not verified by me:** the unroll frames — capturing them while the user was working also captured their browser and moved their cursor, so I stopped and deleted those captures. The user is to check the animation.
+
 ## Added at the user's request (outside PLAN)
 
 - **Notch position (2026-11-13):** the centered pill covered browser tabs. First version was a tray Left/Center/Right switch; replaced the same day by dragging (below). The tray **Position** menu remains as presets: Top center / Top left (8 DIP gap) / Top right (150 DIP gap, keeps a maximized window's ─ □ ✕ clear) / Left side / Right side.

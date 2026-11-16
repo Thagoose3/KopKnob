@@ -53,8 +53,18 @@
                 </Grid>
 
                 <Grid x:Name="PanelContent" Opacity="0" Visibility="Collapsed" Margin="12,10,12,12">
+                    <!-- Scroll theme: faint auspicious-cloud motif behind the pages -->
+                    <Path x:Name="CloudMotif" Visibility="Collapsed" IsHitTestVisible="False"
+                          HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,34"
+                          Width="170" Height="80" Stretch="Uniform" Opacity="0.10"
+                          Stroke="{StaticResource AccentBrush}" StrokeThickness="3" StrokeLineJoin="Round"
+                          Data="M10,70 C-6,70 -4,46 14,46 C12,26 40,20 48,36 C54,14 86,14 90,36 C104,24 128,30 124,50 C142,50 144,70 128,70 Z M44,58 a10,10 0 1 1 10,10 a5,5 0 1 1 -5,-5 M88,56 a8,8 0 1 0 -8,8" />
                     <ContentPresenter x:Name="PanelHost" />
-                </Grid>            </Grid>
+                </Grid>
+
+                <!-- Scroll theme: the two gold rods the scroll is wound on -->
+                <Border x:Name="RodA" Visibility="Collapsed" IsHitTestVisible="False" CornerRadius="5" />
+                <Border x:Name="RodB" Visibility="Collapsed" IsHitTestVisible="False" CornerRadius="5" />            </Grid>
         </Border>
     </Grid>
 </Window>

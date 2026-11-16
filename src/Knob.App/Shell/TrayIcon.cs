@@ -12,7 +12,7 @@ public sealed class TrayIcon : IDisposable
     private readonly Icon _icon;
     private readonly ToolStripMenuItem _runAtStartup;
 
-    public TrayIcon(bool runAtStartup)
+    public TrayIcon(bool runAtStartup, string theme)
     {
         _icon = CreateIcon();
 
@@ -35,6 +35,15 @@ public sealed class TrayIcon : IDisposable
             positionMenu.DropDownItems.Add(label, null, (_, _) => PresetChosen?.Invoke(preset));
         }
         menu.Items.Add(positionMenu);
+
+        var themeMenu = new ToolStripMenuItem("Theme");
+        foreach (var (label, value) in new[] { ("Default", Knob.Core.Storage.AppSettings.ThemeDefault), ("Sutra scroll", Knob.Core.Storage.AppSettings.ThemeScroll) })
+        {
+            var item = new ToolStripMenuItem(label) { Checked = value == theme };
+            item.Click += (_, _) => ThemeChosen?.Invoke(value);
+            themeMenu.DropDownItems.Add(item);
+        }
+        menu.Items.Add(themeMenu);
 
         _runAtStartup = new ToolStripMenuItem("Run at startup") { Checked = runAtStartup, CheckOnClick = true };
         _runAtStartup.CheckedChanged += (_, _) => RunAtStartupToggled?.Invoke(_runAtStartup.Checked);
@@ -61,6 +70,7 @@ public sealed class TrayIcon : IDisposable
     public event Action<bool>? RunAtStartupToggled;
     public event Action<DockPreset>? PresetChosen;
     public event Action? EditLayoutRequested;
+    public event Action<string>? ThemeChosen;
 
     /// <summary>Setting this raises <see cref="RunAtStartupToggled"/> too, so handlers must be idempotent.</summary>
     public bool RunAtStartupChecked
