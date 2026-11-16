@@ -11,7 +11,7 @@ using Knob.Core.Storage;
 
 namespace Knob.App;
 
-/// <summary>Composition root: single instance, settings, window, pill status, tiles, tools, hotkeys, tray.</summary>
+/// <summary>Composition root: single instance, settings, window, pill status, pages, tools, hotkeys, tray.</summary>
 public partial class App : Application
 {
     private const string MutexName = "Knob.SingleInstance";
@@ -28,15 +28,12 @@ public partial class App : Application
     private NotesTile? _notes;
     private MediaSessionService? _media;
     private ClipboardService? _clipboard;
-    private JsonStore<LayoutData>? _layoutStore;
-    private TileHost? _tileHost;
-    private PanelHost? _panelHost;
+    private PageHost? _pages;
     private CalculatorTool? _calculator;
     private QrTool? _qr;
     private TesseractOcrService? _ocr;
     private TextCaptureTool? _textCapture;
     private HotkeyManager? _hotkeys;
-    private bool _editing;
     private FullscreenWatcher? _fullscreen;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -65,8 +62,6 @@ public partial class App : Application
         _window = new NotchWindow(_controller);
         _window.UseDock(_settings.Dock);
         _window.DockChanged += SaveSettings;
-        _window.EditRequested += EnterEditMode;
-        _window.EditCancelRequested += () => _panelHost?.Back();
         _window.Show();
 
         _pillStatus = new PillStatus(_window, SystemClock.Instance);
@@ -77,7 +72,7 @@ public partial class App : Application
         _ocr = new TesseractOcrService();
         _textCapture = new TextCaptureTool(_window, _controller, _ocr);
 
-        BuildTiles();
+        BuildPages();
 
         _tray = new TrayIcon(_settings.RunAtStartup);
         _tray.OpenRequested += OnTrayOpen;
@@ -86,8 +81,9 @@ public partial class App : Application
         _tray.PresetChosen += p => _window.ApplyPreset(p);
         _tray.EditLayoutRequested += () =>
         {
-            EnterEditMode();
-            ActivateForKeyboard(); // so Esc works and a click elsewhere doesn't leave it hanging
+            _controller.RequestOpen();
+            _pages!.ShowCustomize();
+            ActivateForKeyboard(); // so a click elsewhere closes it
         };
 
         RegisterHotkeys();
@@ -132,7 +128,11 @@ public partial class App : Application
         };
     }
 
-    private void BuildTiles()
+    /// <summary>
+    /// The panel: one page at a time with a bottom tab bar. Pages reuse the tile views; only the page on screen
+    /// gets OnPanelOpened/Closed (so the media progress / system monitor run only while their page is shown).
+    /// </summary>
+    private void BuildPages()
     {
         var clock = SystemClock.Instance;
         _pomodoro = new PomodoroService(clock, _window!, _pillStatus!);
@@ -141,84 +141,46 @@ public partial class App : Application
         _media = new MediaSessionService(Dispatcher);
         _ = _media.StartAsync();
         _clipboard = new ClipboardService(KnobPaths.Clipboard, _settings.ClipboardMaxItems, clock, Dispatcher);
+
+        var timer = new TimerTile(_pomodoro);
+        var media = new MediaTile(_media, clock, Dispatcher);
+        var clipboard = new ClipboardTile(_clipboard);
+        var clockTile = new ClockTile(clock, _pillStatus!);
+        var calendar = new CalendarTile(clock);
+        var todo = new TodoTile(KnobPaths.Todo);
+        var disk = new DiskTile();
         var monitor = new MonitorTile(clock, Dispatcher);
 
-        var registry = new TileRegistry(
+        PageDef[] pages =
         [
-            new TimerTile(_pomodoro),
-            new MediaTile(_media, clock, Dispatcher),
-            new ClipboardTile(_clipboard),
-            _coffee,
-            _notes,
-            new ClockTile(clock, _pillStatus!),
-            new CalendarTile(clock),
-            new TodoTile(KnobPaths.Todo),
-            new DiskTile(),
-            monitor,
-            new LauncherTile(
-            [
-                new LauncherTile.Entry("", $"Calculator ({_settings.Hotkeys.Calculator})", OpenCalculator),
-                new LauncherTile.Entry("", $"QR code ({_settings.Hotkeys.Qr})", OpenQr),
-                new LauncherTile.Entry("", $"Text capture ({_settings.Hotkeys.TextCapture})", () => _textCapture!.Start()),
-                new LauncherTile.Entry("", "System monitor", () => monitor.ShowAsTool(_panelHost!)),
-            ]),
-        ]);
+            new("home", "Home", Ui.IconHome, () => HomePage.Create(clockTile, _coffee, disk, () => _textCapture!.Start()), [clockTile, _coffee, disk]),
+            new("music", "Music", Ui.IconMusic, media.CreatePageView, [media]),
+            new("timer", "Timer", Ui.IconTimer, () => Pages.Centered(timer.CreateView(TileSize.L), 1.35), [timer]),
+            new("clipboard", "Clipboard", Ui.IconClipboard, () => Pages.Padded(clipboard.CreateView(TileSize.L)), [clipboard]),
+            new("notes", "Notes", Ui.IconNotes, () => Pages.Padded(_notes.CreateView(TileSize.L)), [_notes]),
+            new("todo", "To-do", Ui.IconTodo, () => Pages.Padded(todo.CreateView(TileSize.L)), [todo]),
+            new("calendar", "Calendar", Ui.IconCalendar, () => Pages.Centered(calendar.CreateView(TileSize.L), 1.25), [calendar]),
+            new("calc", "Calc", Ui.IconCalculator, _calculator!.CreateView, []),
+            new("qr", "QR", Ui.IconQr, _qr!.CreateView, [], Recreate: true), // re-read the clipboard each time
+            new("system", "System", Ui.IconSystem, () => Pages.Padded(monitor.CreateView(TileSize.L)), [monitor]),
+        ];
 
-        _layoutStore = new JsonStore<LayoutData>(KnobPaths.Layout);
-        var layout = GridLayout.FromData(_layoutStore.Load());
-        if (!File.Exists(KnobPaths.Layout)) SaveLayout(layout); // persist even if we never exit cleanly
-        _tileHost = new TileHost(registry, layout);
-        _panelHost = new PanelHost(_tileHost);
-        _window!.PanelBody = _panelHost;
+        _pages = new PageHost(pages, _settings.Tabs, clock, _pillStatus!, SaveSettings);
+        _window!.PanelBody = _pages;
 
-        _controller!.PanelOpened += (_, _) => _tileHost.OnPanelOpened();
-        _controller.PanelClosed += (_, _) =>
-        {
-            _panelHost.Back(); // next open starts on the tiles; stops tool-page polling
-            _tileHost.OnPanelClosed();
-        };
+        _controller!.PanelOpened += (_, _) => _pages.OnPanelOpened();
+        _controller.PanelClosed += (_, _) => _pages.OnPanelClosed();
     }
 
-    /// <summary>
-    /// Layout edit mode on a copy of the layout. The panel stays open (KeepOpen) and gets taller;
-    /// Done applies + saves; Back / Esc / panel closing discards.
-    /// </summary>
-    private void EnterEditMode()
-    {
-        if (_editing || _tileHost is null || _panelHost is null || _controller is null || _window is null) return;
-        _editing = true;
+    private void OpenCalculator() => OpenPage("calc");
 
-        _controller.RequestOpen();
-        _controller.KeepOpen = true;
-        _window.Editing = true;
+    private void OpenQr() => OpenPage("qr");
 
-        var editor = new LayoutEditor(_tileHost.Registry, _tileHost.Layout.Clone(), done: layout =>
-        {
-            _tileHost.Layout = layout;
-            SaveLayout(layout);
-            _panelHost.Back();
-        });
-
-        void OnClosed()
-        {
-            _panelHost.ToolClosed -= OnClosed;
-            _editing = false;
-            _window.Editing = false;
-            if (!_window.IsFloating) _controller.KeepOpen = false; // floating panels stay open anyway
-        }
-        _panelHost.ShowTool(editor, "Edit layout");
-        _panelHost.ToolClosed += OnClosed;
-    }
-
-    private void OpenCalculator() => OpenTool(_calculator!.CreateView(), "Calculator");
-
-    private void OpenQr() => OpenTool(_qr!.CreateView(), "QR code");
-
-    /// <summary>Open the panel straight into a tool page that takes typing.</summary>
-    private void OpenTool(FrameworkElement view, string title)
+    /// <summary>Open the panel straight onto a page that takes typing (hotkeys).</summary>
+    private void OpenPage(string id)
     {
         _controller!.RequestOpen();
-        _panelHost!.ShowTool(view, title);
+        _pages!.Show(id);
         ActivateForKeyboard();
     }
 
@@ -244,12 +206,6 @@ public partial class App : Application
 
         if (failed.Count > 0)
             _tray?.ShowWarning("Knob: hotkey not available", "Already used or invalid: " + string.Join(", ", failed));
-    }
-
-    private void SaveLayout(GridLayout layout)
-    {
-        try { _layoutStore?.Save(layout.ToData()); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     private void OnTrayOpen()
@@ -290,7 +246,6 @@ public partial class App : Application
         _media?.Dispose();
         _clipboard?.Dispose();
         _ocr?.Dispose();
-        if (_tileHost is not null) SaveLayout(_tileHost.Layout);
         _tray?.Dispose();
         _pillStatus?.Dispose();
         _window?.Close();

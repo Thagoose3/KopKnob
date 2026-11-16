@@ -9,7 +9,7 @@
         ShowInTaskbar="False"
         ShowActivated="False"
         ResizeMode="NoResize"
-        Width="720" Height="330"
+        Width="720" Height="280"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         FontFamily="{StaticResource UiFont}"
@@ -54,15 +54,7 @@
 
                 <Grid x:Name="PanelContent" Opacity="0" Visibility="Collapsed" Margin="12,10,12,12">
                     <ContentPresenter x:Name="PanelHost" />
-                </Grid>
-
-                <!-- Small "edit layout" button in the panel's top-left corner (open panel only) -->
-                <Button x:Name="EditButton" Style="{StaticResource GhostButton}" Width="20" Height="16" Padding="0"
-                        HorizontalAlignment="Left" VerticalAlignment="Top" Margin="6,1,0,0"
-                        Opacity="0.6" Visibility="Collapsed" ToolTip="Edit layout">
-                    <TextBlock Text="&#xE70F;" FontFamily="{StaticResource IconFont}" FontSize="9" />
-                </Button>
-            </Grid>
+                </Grid>            </Grid>
         </Border>
     </Grid>
 </Window>

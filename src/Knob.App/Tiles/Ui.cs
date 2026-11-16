@@ -17,6 +17,19 @@ internal static class Ui
     public const string IconLeft = "";
     public const string IconRight = "";
 
+    // Tab bar
+    public const string IconHome = "";
+    public const string IconMusic = "";
+    public const string IconTimer = "";
+    public const string IconClipboard = "";
+    public const string IconNotes = "";
+    public const string IconTodo = "";
+    public const string IconCalendar = "";
+    public const string IconCalculator = "";
+    public const string IconQr = "";
+    public const string IconSystem = "";
+    public const string IconCapture = "";
+
     public static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
     public static Brush Accent => Res<Brush>("AccentBrush");

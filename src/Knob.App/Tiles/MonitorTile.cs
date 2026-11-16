@@ -12,8 +12,7 @@ using Knob.Core.Storage;
 namespace Knob.App.Tiles;
 
 /// <summary>
-/// CPU / RAM / network. Polls once per second only while visible: as a placed tile with the panel open,
-/// or as the full-panel tool page. Stops as soon as neither is true.
+/// CPU / RAM / network. Polls once per second only while its page is on screen in the open panel.
 /// </summary>
 public sealed class MonitorTile : TileBase
 {
@@ -25,7 +24,7 @@ public sealed class MonitorTile : TileBase
     private readonly Queue<double> _cpuHistory = new();
     private long _prevIdle, _prevKernel, _prevUser;
     private bool _havePrev;
-    private bool _tileVisible, _toolVisible;
+    private bool _tileVisible;
     private CpuUtilityCounter? _utility;
     private bool _triedUtility;
     private event Action? Sampled;
@@ -51,25 +50,9 @@ public sealed class MonitorTile : TileBase
     public override void OnPanelOpened() { _tileVisible = true; SyncPolling(); }
     public override void OnPanelClosed() { _tileVisible = false; SyncPolling(); }
 
-    /// <summary>Open as a full-panel tool page; polling stops when the page closes.</summary>
-    public void ShowAsTool(PanelHost host)
-    {
-        host.ShowTool(CreateView(TileSize.L), "System");
-        _toolVisible = true;
-        SyncPolling();
-
-        void OnClosed()
-        {
-            host.ToolClosed -= OnClosed;
-            _toolVisible = false;
-            SyncPolling();
-        }
-        host.ToolClosed += OnClosed;
-    }
-
     private void SyncPolling()
     {
-        var want = _tileVisible || _toolVisible;
+        var want = _tileVisible;
         if (want && !_poll.IsEnabled)
         {
             if (!_triedUtility)

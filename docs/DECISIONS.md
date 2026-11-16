@@ -158,6 +158,17 @@ M5 verification (2026-11-13):
 - [ ] **RAM target missed (accepted per PLAN: "WPF can't go much lower"):** fresh start working set 161 MB, of which **private 89 MB** (the rest is shared .NET/WPF images). After an OCR run the working set stays ~220 MB even after the Tesseract engine is released (native heap isn't returned to the OS right away). Possible follow-up: trim the working set after the engine is released.
 - [ ] **User to check:** a real fullscreen video/game; sleep → resume; unplug/replug a monitor; leave it running overnight (no crash, memory not growing)
 
+## Redesign: pages + bottom tab bar (2026-11-16, user request)
+
+The user asked to switch from the movable tile grid to one page at a time with a tab bar along the bottom (inspired by a "dynamic island for Windows" clip they recorded — layout idea only; no name, logo, mascot or visuals copied). Same functions, design change only; no translucent/blur background (agreed: big rendering change for little gain).
+
+- **Panel** (720×280 DIP): header (date left · time + ··· right), the current page, tab bar. The active tab is a capsule with icon + name; others are icons. The last tab is remembered.
+- **Pages** reuse the existing tile views: Home (big clock, Coffee, disk, Capture text), **Music** (new full-page view: 150 px cover, big title, progress, controls; background tinted with the cover's average colour), Timer and Calendar (centred, scaled up), Clipboard, Notes, To-do, System (full page), Calc and QR (the M3 tools; QR is rebuilt each time it is shown so it re-reads the clipboard).
+- **Only the page on screen** gets `OnPanelOpened/Closed`, so media progress and the system monitor run only while their page is visible. Hotkeys open their page directly (Calc/QR) even if hidden from the tab bar.
+- **Layout editing (M4) is replaced by "Customize tabs"** (··· or tray → Edit layout): show/hide tabs and move them left/right; at least one tab always stays visible. Stored in settings.json `"Tabs": { Order, Hidden, Last }` (`TabSettings` in Core, tested). The tile grid, its editor, swap/replace, `layout.json`, the Launcher tile and the tool-page host were removed (they are in git history).
+- **Fullscreen detection fix found while testing:** click-through (`WS_EX_TRANSPARENT`) fullscreen overlays — e.g. the Claude desktop app's screen-control overlay, screen recorders, some game overlays — were treated as fullscreen apps and hid the knob. They are ignored now; the new-window and F11-style tests still hide/show correctly.
+- Verified on screen: every tab opens its page; Customize shows all 10 tabs with tick boxes and arrows; idle CPU of the published build 0 s in 60 s (private memory ~100 MB).
+
 ## Added at the user's request (outside PLAN)
 
 - **Notch position (2026-11-13):** the centered pill covered browser tabs. First version was a tray Left/Center/Right switch; replaced the same day by dragging (below). The tray **Position** menu remains as presets: Top center / Top left (8 DIP gap) / Top right (150 DIP gap, keeps a maximized window's ─ □ ✕ clear) / Left side / Right side.

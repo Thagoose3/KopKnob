@@ -71,6 +71,7 @@ public sealed class FullscreenWatcher : IDisposable
     private const int OBJID_WINDOW = 0;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
     private const int WS_CAPTION = 0x00C00000;
+    private const long WS_EX_TRANSPARENT = 0x00000020;
 
     private readonly HwndSource _source;
     private readonly uint _callbackMessage;
@@ -192,7 +193,7 @@ public sealed class FullscreenWatcher : IDisposable
     /// <summary>
     /// Foreground window covers the whole primary monitor and is a real fullscreen app: not the desktop,
     /// not one of Knob's own windows (capture overlay), not an ordinary maximized window with a title bar
-    /// (those cover the monitor when the taskbar auto-hides).
+    /// (those cover the monitor when the taskbar auto-hides), not a click-through overlay.
     /// </summary>
     private bool ForegroundIsFullscreen()
     {
@@ -208,6 +209,10 @@ public sealed class FullscreenWatcher : IDisposable
 
         var style = NativeMethods.GetWindowStyle(fg);
         if (IsZoomed(fg) && (style & WS_CAPTION) == WS_CAPTION) return false; // plain maximized window
+
+        // Click-through overlays (screen recorders, remote-control/automation overlays, some game overlays) cover
+        // the whole screen but aren't content; a real fullscreen video or game is never click-through.
+        if ((NativeMethods.GetExStyle(fg) & WS_EX_TRANSPARENT) != 0) return false;
 
         var primary = NativeMethods.MonitorFromPoint(default, NativeMethods.MONITOR_DEFAULTTOPRIMARY);
         if (MonitorFromWindow(fg, NativeMethods.MONITOR_DEFAULTTOPRIMARY) != primary) return false;

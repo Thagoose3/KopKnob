@@ -29,13 +29,14 @@ dotnet publish src/Knob.App -c Release -r win-x64 --self-contained false -p:Publ
 
 - **Hover** the pill (or click it) to open the panel; move away or press **Esc** to close.
 - **Move it:** with the panel open, press on an empty area and drag. Drop it in the middle → floating panel (stays open; ✕ or Esc sends it back). Drop it on the **left / right / top** edge → it docks there, at that spot. Tray → **Position** has presets if it ever gets lost.
-- **Edit layout:** ✎ in the panel's top-left corner, or tray → **Edit layout**. Drag tiles, resize with S/W/L, hide with ✕, drag hidden tiles back from the bottom strip. **Done** saves, **Reset** = default, Esc = cancel.
+- **Pages:** the panel shows one page at a time; switch with the tab bar along the bottom (the open tab shows its name). The last tab is remembered.
+- **Customize tabs:** ··· in the panel's top-right corner, or tray → **Edit layout**. Tick to show/hide a tab, arrows to change the order.
 - Hidden automatically while a fullscreen app (video, game, slideshow) is in front.
 - Tray menu: Open · Edit layout · Position · Run at startup · Quit.
 
-### Tiles
+### Pages
 
-Timer (Pomodoro) · Media (now playing + controls) · Clipboard history · Calendar · Coffee (keep awake) · Notes · To-do · Clock · Disk · Tools · System monitor (hidden by default — add it in Edit layout, or open it from Tools).
+Home (big clock, Coffee keep-awake, disk space, Capture text) · Music (now playing, cover-tinted) · Timer (Pomodoro) · Clipboard history · Notes · To-do · Calendar · Calc · QR · System monitor.
 
 ### Hotkeys
 
@@ -53,8 +54,7 @@ Everything lives in `%APPDATA%\Knob\` as plain files (written atomically; a brok
 
 | File | What |
 |---|---|
-| `settings.json` | delays, hotkeys, clipboard size, dock position, run-at-startup, hide-on-fullscreen |
-| `layout.json` | tile positions/sizes |
+| `settings.json` | delays, hotkeys, clipboard size, dock position, tabs (order/hidden/last), run-at-startup, hide-on-fullscreen |
 | `notes.txt` | Notes |
 | `todo.json` | To-do |
 | `clipboard.json` | Clipboard history (text only; items marked private by password managers are skipped; **Pause** in the tile stops recording) |
@@ -65,8 +65,8 @@ No network access, no admin rights, no telemetry.
 
 ## Project
 
-- `src/Knob.Core` — logic without UI/OS (layout grid, timer, calculator, clipboard history, OCR text cleanup, dock geometry…), fully unit-tested in `tests/Knob.Core.Tests`.
-- `src/Knob.App` — WPF app: shell window, tiles, tools, Win32/WinRT wrappers.
+- `src/Knob.Core` — logic without UI/OS (tab settings, timer, calculator, clipboard history, OCR text cleanup, dock geometry…), fully unit-tested in `tests/Knob.Core.Tests`.
+- `src/Knob.App` — WPF app: shell window, pages + tab bar, tiles (the views pages are built from), tools, Win32/WinRT wrappers.
 - `docs/PLAN.md` — the plan; `docs/DECISIONS.md` — every choice the plan didn't make, and verification results.
 
 Third-party: [QRCoder](https://github.com/codebude/QRCoder) (MIT), [Tesseract .NET](https://github.com/charlesw/tesseract) (Apache-2.0), Tesseract `tessdata_fast` `tha`/`eng` (Apache-2.0).
