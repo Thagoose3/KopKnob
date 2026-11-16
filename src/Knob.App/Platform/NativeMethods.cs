@@ -12,6 +12,26 @@ internal static class NativeMethods
     public const int WM_DISPLAYCHANGE = 0x007E;
     public const int WM_DPICHANGED = 0x02E0;
     public const int WM_DEVICECHANGE = 0x0219;
+    public const int WM_POWERBROADCAST = 0x0218;
+    public const int PBT_POWERSETTINGCHANGE = 0x8013;
+    /// <summary>GUID_ACDC_POWER_SOURCE: data is a DWORD, 0 = AC, 1 = battery, 2 = short-term (UPS).</summary>
+    public static readonly Guid GUID_ACDC_POWER_SOURCE = new("5D3E9A59-E9D5-4B00-A6BD-FF34FF516548");
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr RegisterPowerSettingNotification(IntPtr recipient, ref Guid powerSetting, int flags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnregisterPowerSettingNotification(IntPtr handle);
+
+    /// <summary>For a PBT_POWERSETTINGCHANGE: true = on AC, false = on battery, null = another setting.</summary>
+    public static bool? ReadAcDc(IntPtr lParam)
+    {
+        if (lParam == IntPtr.Zero) return null;
+        var setting = Marshal.PtrToStructure<Guid>(lParam);          // POWERBROADCAST_SETTING.PowerSetting
+        if (setting != GUID_ACDC_POWER_SOURCE || Marshal.ReadInt32(lParam, 16) < 4) return null; // DataLength
+        return Marshal.ReadInt32(lParam, 20) == 0;                       // Data
+    }
     private const int DBT_DEVICEARRIVAL = 0x8000;
     private const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
     private const int DBT_DEVTYP_VOLUME = 2;

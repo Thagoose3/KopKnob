@@ -216,3 +216,4 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - Weather: Open-Meteo (no key). The user searches a city; only the name (search) and coordinates rounded to 0.01° are sent. Fetched at most every 30 min on the pill's minute tick; temperature shown on the pill.
 - Device alerts on the pill: charger plugged/unplugged, USB drive connected/removed (WM_DEVICECHANGE), Bluetooth connect/disconnect with battery. Event-driven, no polling.
 - Shelf: drop files on the knob to park references (shelf.json); drag out to move/copy. Launch: pinned apps/files/folders (launch.json); click to open, right-click menu.
+- Charger alerts use RegisterPowerSettingNotification(GUID_ACDC_POWER_SOURCE): SystemEvents.PowerModeChanged (PBT_APMPOWERSTATUSCHANGE) did not fire on this Modern Standby laptop. Alerts go to the panel header while the panel is open, and every hardware event is logged to %APPDATA%\Knob\events.log (trimmed to ~32 KB).

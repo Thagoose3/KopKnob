@@ -89,7 +89,7 @@ public sealed class PageHost : DockPanel
     private DispatcherTimer? _flashTimer;
 
     /// <summary>Show a short status in place of the date for a moment ("🔊 46%").</summary>
-    public void Flash(string text)
+    public void Flash(string text, TimeSpan? duration = null)
     {
         _date.Text = text;
         _date.Foreground = Ui.Fg;
@@ -100,6 +100,7 @@ public sealed class PageHost : DockPanel
             RefreshHeader();
         }, Dispatcher);
         _flashTimer.Stop();
+        _flashTimer.Interval = duration ?? TimeSpan.FromMilliseconds(1200);
         _flashTimer.Start();
     }
 

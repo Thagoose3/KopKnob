@@ -277,6 +277,10 @@ public partial class NotchWindow : Window
         NativeMethods.SetExStyle(_hwnd, ex);
 
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
+        // Charger plugged/unplugged. (The legacy PBT_APMPOWERSTATUSCHANGE / SystemEvents.PowerModeChanged is not
+        // reliably sent on Modern Standby laptops; this registration is.)
+        var acdc = NativeMethods.GUID_ACDC_POWER_SOURCE;
+        _powerNotify = NativeMethods.RegisterPowerSettingNotification(_hwnd, ref acdc, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         Reposition();
 
@@ -294,6 +298,7 @@ public partial class NotchWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        if (_powerNotify != IntPtr.Zero) NativeMethods.UnregisterPowerSettingNotification(_powerNotify);
         _controller.StateChanged -= OnStateChanged;
         base.OnClosed(e);
     }
@@ -307,8 +312,15 @@ public partial class NotchWindow : Window
         }
         else if (msg == NativeMethods.WM_DEVICECHANGE)
         {
+            DiagLog.Write($"WM_DEVICECHANGE wParam=0x{wParam.ToInt64():X}");
             foreach (var (drive, arrived) in NativeMethods.ReadVolumeChange(wParam, lParam))
                 DriveChanged?.Invoke(drive, arrived);
+        }
+        else if (msg == NativeMethods.WM_POWERBROADCAST && wParam.ToInt64() == NativeMethods.PBT_POWERSETTINGCHANGE
+                 && NativeMethods.ReadAcDc(lParam) is bool onAc)
+        {
+            DiagLog.Write($"Power source: {(onAc ? "AC" : "battery")}");
+            PowerSourceChanged?.Invoke(onAc);
         }
         return IntPtr.Zero;
     }
@@ -319,6 +331,9 @@ public partial class NotchWindow : Window
     public event Action<int>? KnobWheel;
     /// <summary>A local drive (USB stick, SD card) appeared (true) or went away (false).</summary>
     public event Action<char, bool>? DriveChanged;
+    /// <summary>Charger plugged in (true) or unplugged (false). Also raised once right after start-up.</summary>
+    public event Action<bool>? PowerSourceChanged;
+    private IntPtr _powerNotify;
     /// <summary>Files are being dragged over the knob (it opens).</summary>
     public event Action? FilesDragEntered;
     /// <summary>Files were dropped on the knob.</summary>

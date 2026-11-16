@@ -227,7 +227,12 @@ public partial class App : Application
         _pillStatus!.MinuteTick += () => _ = _weather.RefreshAsync();
         _ = _weather.RefreshAsync();
 
-        _alerts = new DeviceAlerts(_window, _bluetooth);
+        _alerts = new DeviceAlerts(_window, _bluetooth, text =>
+        {
+            // The pill is hidden while the panel is open: put it in the header there.
+            if (_controller!.IsExpanded) _pages.Flash(text, TimeSpan.FromSeconds(3));
+            else _window.ShowPillMessage(text, TimeSpan.FromSeconds(3));
+        });
     }
 
     private static string VolumeText(int percent) => percent == 0 ? "\U0001F507 Muted" : $"\U0001F50A {percent}%";

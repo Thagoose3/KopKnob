@@ -99,6 +99,7 @@ public sealed class BluetoothMonitor : IDisposable
         if (!_endpoints.TryGetValue(u.Id, out var e)) return;
         if (!u.Properties.TryGetValue(IsConnected, out var c) || c is not bool now || now == e.Connected) return;
         _endpoints[u.Id] = e with { Connected = now };
+        DiagLog.Write($"Bluetooth {e.Name}: {(now ? "connected" : "disconnected")}");
         if (_pendingEnumerations <= 0) ConnectionChanged?.Invoke(e.Name, now);
         Changed?.Invoke();
     }
