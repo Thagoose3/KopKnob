@@ -11,9 +11,12 @@ public sealed class AppSettings : IJsonNormalizable
     public HotkeySettings Hotkeys { get; set; } = new();
     public int ClipboardMaxItems { get; set; } = 50;
     public DockSettings Dock { get; set; } = new();
+    public TabSettings Tabs { get; set; } = new();
 
     public void Normalize()
     {
+        Tabs ??= new TabSettings();
+        Tabs.Normalize(TabSettings.DefaultOrder);
         Hotkeys ??= new HotkeySettings();
         Hotkeys.Normalize();
         Dock ??= new DockSettings();
