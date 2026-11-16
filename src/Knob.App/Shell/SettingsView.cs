@@ -138,9 +138,10 @@ public static class SettingsView
             Pages.Choice<string>([("Default", AppSettings.ThemeDefault), ("Glass", AppSettings.ThemeGlass), ("Scroll", AppSettings.ThemeScroll)],
                 s.Theme, host.ChangeTheme)));
 
-        (FrameworkElement Switch, Action<bool> Set) startup = default;
-        startup = Pages.Toggle(s.RunAtStartup, on => startup.Set(host.SetRunAtStartup(on)));
-        p.Children.Add(Row("Run at startup", "Start Knob when you sign in to Windows", startup.Switch));
+        Action<bool>? setStartup = null;
+        var (startupSwitch, set) = Pages.Toggle(s.RunAtStartup, on => setStartup?.Invoke(host.SetRunAtStartup(on)));
+        setStartup = set; // show what actually happened (the registry write can fail)
+        p.Children.Add(Row("Run at startup", "Start Knob when you sign in to Windows", startupSwitch));
 
         p.Children.Add(Row("Hide in full screen", "Get out of the way of games and full-screen videos",
             Toggle(s.HideOnFullscreen, host.SetHideOnFullscreen)));

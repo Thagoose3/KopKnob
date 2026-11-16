@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Knob installer. Targets .NET Framework 4.8, which ships with Windows 10/11, so it runs on any PC without
+    installing anything first. The app itself (published self-contained) is embedded as payload.zip by
+    scripts\build-installer.ps1 (-p:PayloadZip=...). Without a payload it still builds, for development.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>KnobSetup</AssemblyName>
+    <RootNamespace>Knob.Setup</RootNamespace>
+    <ApplicationIcon>..\Knob.App\Assets\knob.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Description>Knob installer</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PayloadZip)' != '' And Exists('$(PayloadZip)')">
+    <EmbeddedResource Include="$(PayloadZip)" LogicalName="payload.zip" />
+  </ItemGroup>
+
+</Project>

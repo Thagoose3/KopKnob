@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- "Uninstall Knob.exe": tiny, .NET Framework 4.8 (built into Windows), copied into the install folder. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>KnobUninstall</AssemblyName>
+    <RootNamespace>Knob.Setup</RootNamespace>
+    <ApplicationIcon>..\Knob.App\Assets\knob.ico</ApplicationIcon>
+    <ApplicationManifest>..\Knob.Setup\app.manifest</ApplicationManifest>
+    <Description>Knob uninstaller</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Compile Include="..\Knob.Setup\Install.cs" Link="Install.cs" />
+  </ItemGroup>
+
+</Project>

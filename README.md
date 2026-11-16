@@ -5,6 +5,25 @@ Built for one person's daily use — light, and ~0 % CPU while it sits collapsed
 
 Windows 10 (19041+) / 11 · .NET 8 · WPF
 
+## Install
+
+Run `KnobSetup-<version>.exe`. It installs for the current user only (no admin rights) into
+`%LOCALAPPDATA%\Programs\Knob`, adds a Start menu shortcut, optionally starts Knob when you sign in, and shows up
+in **Settings → Apps**, where it can be uninstalled. .NET is bundled — nothing else to install.
+Running a newer setup updates in place and keeps notes, to-dos and settings (`%APPDATA%\Knob`).
+
+The installer isn't code-signed, so Windows SmartScreen shows "Windows protected your PC" the first time:
+**More info → Run anyway**.
+
+Build it with:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\build-installer.ps1
+```
+
+→ `artifacts\KnobSetup-<version>.exe` (the version comes from `Directory.Build.props`).
+Silent install: `KnobSetup.exe /S` (`/D=folder`, `/NOLAUNCH`); silent uninstall: `"Uninstall Knob.exe" /S` (`/PURGE` also deletes user data).
+
 ## Build & run
 
 Needs the .NET 8 SDK.

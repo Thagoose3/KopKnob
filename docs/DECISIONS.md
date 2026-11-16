@@ -228,3 +228,11 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 
 - Settings in the panel (··· button, tray "Settings…"): General (theme, run at startup, hide in full screen, hover delay, GPU drawing), Alerts (keyboard language, Caps Lock, privacy dots, weather on pill, charge limit, device low battery), Hotkeys (click a box and press the combination; hotkeys are unregistered while recording), Tabs (the old customize view), About. Everything applies at once except theme and GPU drawing, which restart Knob.
 - Software rendering by default (RenderOptions.ProcessRenderMode = SoftwareOnly). Measured: private memory 166 MB → 31 MB, working set 209 MB → 122 MB, no Intel/NVIDIA driver DLLs loaded (the discrete GPU is no longer woken). Idle CPU unchanged (~0%). The knob is a small layered window that WPF reads back from the GPU anyway. "GPU drawing" in Settings switches back.
+
+## Installer
+
+- Own installer instead of Inno Setup/WiX (nothing extra to download): `src/Knob.Setup` (KnobSetup.exe) and `src/Knob.Uninstall` ("Uninstall Knob.exe"), both .NET Framework 4.8 — built into Windows 10/11 — so they run anywhere. `scripts/build-installer.ps1` publishes Knob self-contained (x64), zips it and embeds the zip.
+- Per-user: %LOCALAPPDATA%\Programs\Knob, HKCU Uninstall entry, HKCU Run value "Knob" (same one Knob's own toggle uses), Start menu shortcut; manifest asInvoker so Windows never asks for admin.
+- install-files.txt lists every file written; uninstall deletes exactly those (and files dropped by an update), never anything else in the folder. User data in %APPDATA%\Knob is kept unless the user ticks "also delete my data".
+- The self-contained exe is published without single-file compression: compressed bundles are unpacked into private memory on every start (measured 111 MB private vs 33 MB uncompressed). The installer's zip compresses anyway (installer ≈ 75 MB; ≈ 190 MB on disk).
+- Not code-signed: SmartScreen warns on first run.
