@@ -107,7 +107,7 @@ public sealed class MediaTile : TileBase
         layout.Children.Add(art);
         layout.Children.Add(info);
 
-        var tint = new Border { CornerRadius = new CornerRadius(14), Child = layout };
+        var tint = Pages.Smooth(new Border { CornerRadius = new CornerRadius(14), Child = layout });
         ImageSource? tintedFor = null;
 
         void Progress()

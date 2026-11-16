@@ -11,8 +11,11 @@ namespace Knob.App.Tiles;
 public sealed class ClockTile(IClock clock, PillStatus pill) : TileBase
 {
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
-    private event Action? Refreshed;
+    /// <summary>Raised when the page opens and once a minute while it is on screen.</summary>
+    public event Action? Refreshed;
     private bool _open;
+
+    public IClock Clock => clock;
 
     public override string Id => "clock";
     public override string Title => "Clock";

@@ -10,7 +10,8 @@ namespace Knob.App.Tiles;
 /// <summary>Keep-awake toggle. Always starts off; turned off on quit.</summary>
 public sealed class CoffeeTile(NotchWindow window) : TileBase
 {
-    private event Action? Changed;
+    /// <summary>Raised when keep-awake is switched on or off.</summary>
+    public event Action? Changed;
 
     public bool IsOn { get; private set; }
 

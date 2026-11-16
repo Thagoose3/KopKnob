@@ -9,9 +9,27 @@ namespace Knob.App.Tiles;
 /// <summary>Free space on the system drive. Read only when the panel opens.</summary>
 public sealed class DiskTile : TileBase
 {
-    private event Action? Changed;
+    /// <summary>Raised after the drive was (re)read.</summary>
+    public event Action? Changed;
     private string _name = "C:";
     private long _free, _total;
+
+    public string DriveName => _name;
+    public long FreeBytes => _free;
+    public long TotalBytes => _total;
+
+    /// <summary>Open the drive in File Explorer.</summary>
+    public void OpenInExplorer()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", _name + "\\") { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // nothing sensible to do
+        }
+    }
 
     public override string Id => "disk";
     public override string Title => "Disk";

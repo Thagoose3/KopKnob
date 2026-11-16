@@ -153,7 +153,7 @@ public partial class App : Application
 
         PageDef[] pages =
         [
-            new("home", "Home", Ui.IconHome, () => HomePage.Create(clockTile, _coffee, disk, () => _textCapture!.Start()), [clockTile, _coffee, disk]),
+            new("home", "Home", Ui.IconHome, () => HomePage.Create(clockTile, _coffee, disk, _settings.Hotkeys.TextCapture, () => _textCapture!.Start()), [clockTile, _coffee, disk]),
             new("music", "Music", Ui.IconMusic, media.CreatePageView, [media]),
             new("timer", "Timer", Ui.IconTimer, () => Pages.Centered(timer.CreateView(TileSize.L), 1.35), [timer]),
             new("clipboard", "Clipboard", Ui.IconClipboard, () => Pages.Padded(clipboard.CreateView(TileSize.L)), [clipboard]),
