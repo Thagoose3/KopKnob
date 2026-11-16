@@ -51,6 +51,7 @@ public partial class NotchWindow : Window
     private bool _dragging;
     private bool _scroll;
     private double _surfaceBorder;
+    private Brush? _edgeBrush; // resting outline (Glass theme); null = accent outline only while snapping
 
     public NotchWindow(NotchController controller)
     {
@@ -492,6 +493,20 @@ public partial class NotchWindow : Window
         if (_hwnd != IntPtr.Zero) Reposition();
     }
 
+    /// <summary>
+    /// Frosted-glass Dynamic Island: the translucent fill comes from the theme's BackgroundColor; this adds the
+    /// light hairline edge and the top sheen. Call once, before Show().
+    /// </summary>
+    public void UseGlassTheme()
+    {
+        _surfaceBorder = 1;
+        _edgeBrush = Ui.Res<Brush>("GlassEdgeBrush");
+        Surface.BorderBrush = _edgeBrush;
+        Surface.BorderThickness = new Thickness(_surfaceBorder);
+        GlassSheen.Background = Ui.Res<Brush>("GlassSheenBrush");
+        GlassSheen.Visibility = Visibility.Visible;
+    }
+
     // ───────────────────────── open / close ─────────────────────────
 
     private void OnStateChanged(NotchState state)
@@ -657,7 +672,7 @@ public partial class NotchWindow : Window
         finally
         {
             _dragging = false;
-            Surface.BorderThickness = new Thickness(_surfaceBorder);
+            SetOutline(snapping: false);
         }
         FinishDrag();
     }
@@ -672,8 +687,13 @@ public partial class NotchWindow : Window
         CursorDip() is { } c ? DockGeometry.Snap(c.X, c.Y, 0, 0, MonitorWidthDip, MonitorHeightDip) : null;
 
     /// <summary>While dragging: accent outline when releasing here would dock to an edge.</summary>
-    private void UpdateSnapPreview() =>
-        Surface.BorderThickness = new Thickness(SnapEdgeAtCursor() is null ? _surfaceBorder : 2.5);
+    private void UpdateSnapPreview() => SetOutline(snapping: SnapEdgeAtCursor() is not null);
+
+    private void SetOutline(bool snapping)
+    {
+        Surface.BorderThickness = new Thickness(snapping ? 2.5 : _surfaceBorder);
+        Surface.BorderBrush = snapping || _edgeBrush is null ? Ui.Res<Brush>("AccentBrush") : _edgeBrush;
+    }
 
     private void FinishDrag()
     {

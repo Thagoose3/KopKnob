@@ -99,6 +99,9 @@ public sealed class JsonStoreTests : IDisposable
 
         File.WriteAllText(PathFor("settings.json"), "{\"Theme\":\"scroll\"}");
         Assert.Equal(AppSettings.ThemeScroll, store.Load().Theme); // case-insensitive
+
+        File.WriteAllText(PathFor("settings.json"), "{\"Theme\":\"GLASS\"}");
+        Assert.Equal(AppSettings.ThemeGlass, store.Load().Theme);
     }
 
     [Fact]

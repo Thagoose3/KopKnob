@@ -60,12 +60,16 @@ public partial class App : Application
 
         // Theme colours must be in place before any window or view reads them.
         var scrollTheme = _settings.Theme == AppSettings.ThemeScroll;
+        var glassTheme = _settings.Theme == AppSettings.ThemeGlass;
         if (scrollTheme)
             Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("Themes/Scroll.xaml", UriKind.Relative) });
+        if (glassTheme)
+            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("Themes/Glass.xaml", UriKind.Relative) });
 
         _controller = new NotchController(_settings, Dispatcher);
         _window = new NotchWindow(_controller);
         if (scrollTheme) _window.UseScrollTheme();
+        if (glassTheme) _window.UseGlassTheme();
         _window.UseDock(_settings.Dock);
         _window.DockChanged += SaveSettings;
         _window.Show();

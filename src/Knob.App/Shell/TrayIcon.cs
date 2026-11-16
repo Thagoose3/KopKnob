@@ -37,7 +37,7 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(positionMenu);
 
         var themeMenu = new ToolStripMenuItem("Theme");
-        foreach (var (label, value) in new[] { ("Default", Knob.Core.Storage.AppSettings.ThemeDefault), ("Sutra scroll", Knob.Core.Storage.AppSettings.ThemeScroll) })
+        foreach (var (label, value) in new[] { ("Default", Knob.Core.Storage.AppSettings.ThemeDefault), ("Glass", Knob.Core.Storage.AppSettings.ThemeGlass), ("Sutra scroll", Knob.Core.Storage.AppSettings.ThemeScroll) })
         {
             var item = new ToolStripMenuItem(label) { Checked = value == theme };
             item.Click += (_, _) => ThemeChosen?.Invoke(value);

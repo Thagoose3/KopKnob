@@ -30,6 +30,8 @@
             <Grid x:Name="SurfaceGrid">
                 <!-- Scroll theme: the red silk body (drawn instead of the plain background) -->
                 <Border x:Name="ScrollBody" Visibility="Collapsed" IsHitTestVisible="False" CornerRadius="2" BorderThickness="1" />
+                <!-- Glass theme: soft light sheen across the top of the glass -->
+                <Border x:Name="GlassSheen" Visibility="Collapsed" IsHitTestVisible="False" />
 
                 <Grid x:Name="PillContent" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel x:Name="PillNormal" Orientation="Horizontal">

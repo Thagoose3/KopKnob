@@ -202,3 +202,9 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
   - Known limit: docking uses the primary monitor only (PLAN v1); a floating panel can be dropped on another monitor but docks only to the primary one's edges.
 - **Swap tiles in edit mode (2026-11-13):** dropping a tile onto another swaps them. Both stay inside the cells they used together (no other tile moves) and end up in swapped reading order; sizes adapt — the arrangement that fills those cells best wins, preferring each tile to take the other's size/spot when it supports it. Impossible swaps (e.g. L-only Calendar into a 1-cell spot) show red and change nothing. Dropping a hidden tile onto a shown one replaces it (the old one becomes hidden). `GridLayout.TrySwap` / `TryReplace` in Core with tests. Verified on screen: Coffee→Notes, Timer(L)→Clock(S) (Clock became W, Timer S), Calendar→Disk refused, System→Notes replaced.
 - **Git fix:** the default .NET `.gitignore` has `*.app` (macOS bundles), which matched `src/Knob.App` case-insensitively, so no App source was committed before commit "fix: track src/Knob.App". The M0/M1 "feat" commits before it contain Core/tests/docs only; the App sources for both milestones are in that one fix commit. `.gitignore` now un-ignores `/src/Knob.App/`.
+
+## Glass theme (frosted Dynamic Island)
+
+- Third theme, "Glass": the Dynamic Island shape in smoky translucent dark glass (`Themes/Glass.xaml`), a light hairline edge and a soft top sheen (`NotchWindow.UseGlassTheme`).
+- No real blur. A layered transparent window only gets acrylic through the undocumented SetWindowCompositionAttribute, which blurs the whole 720 px window rectangle; we would need a window region following the pill↔panel animation every frame (jagged corners, possible stutter). Fake frosted glass costs nothing at idle; real blur can be layered on later.
+- The drag snap preview still switches the outline to the accent colour, then back to the glass edge.

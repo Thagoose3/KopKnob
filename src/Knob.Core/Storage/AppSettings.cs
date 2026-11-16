@@ -7,7 +7,9 @@ public sealed class AppSettings : IJsonNormalizable
     public const string ThemeDefault = "Default";
     /// <summary>Journey-to-the-West "sutra scroll" look: lacquer red, gold rods, unrolls when it opens.</summary>
     public const string ThemeScroll = "Scroll";
-    public static readonly string[] Themes = [ThemeDefault, ThemeScroll];
+    /// <summary>Dynamic-Island shape in frosted (translucent, no real blur) dark glass.</summary>
+    public const string ThemeGlass = "Glass";
+    public static readonly string[] Themes = [ThemeDefault, ThemeScroll, ThemeGlass];
 
     public string Theme { get; set; } = ThemeDefault;
     public int HoverOpenDelayMs { get; set; } = 120;
