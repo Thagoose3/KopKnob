@@ -462,7 +462,7 @@ public partial class NotchWindow : Window
 
     /// <summary>
     /// Journey-to-the-West "sutra scroll" look: red silk body on red-lacquer rods with gold bands and jade finials,
-    /// cream paper with a gold rule and a faded Monkey King painting, light pill text, and the unroll animation.
+    /// cream paper with a gold rule and a faded staff/gourd/clouds ornament, light pill text, and the unroll animation.
     /// Call once, before Show().
     /// </summary>
     public void UseScrollTheme()

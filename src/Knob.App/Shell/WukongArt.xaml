@@ -3,32 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              IsHitTestVisible="False">
     <!--
-      Background painting for the "Sutra scroll" theme: the Monkey King (original design; public-domain character)
-      with golden circlet, staff, gourd and golden clouds. Drawn on a 720×280 canvas and stretched to the panel.
+      Background ornament for the "Sutra scroll" theme (Journey to the West motifs, no figure): the golden-banded
+      staff with a gourd hanging from it, over golden clouds. Drawn on a 720×280 canvas and stretched to the panel.
       The host sets the opacity so it reads like a faded painting on the paper.
     -->
     <UserControl.Resources>
-        <LinearGradientBrush x:Key="Gold" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Offset="0" Color="#FFF1B0" />
-            <GradientStop Offset="0.35" Color="#F7C531" />
-            <GradientStop Offset="1" Color="#A86F12" />
-        </LinearGradientBrush>
         <LinearGradientBrush x:Key="GoldH" StartPoint="0,0" EndPoint="1,0">
             <GradientStop Offset="0" Color="#A86F12" />
             <GradientStop Offset="0.5" Color="#FFE27A" />
             <GradientStop Offset="1" Color="#A86F12" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="Fur" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Offset="0" Color="#8A5530" />
-            <GradientStop Offset="1" Color="#3E2312" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="Skin" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Offset="0" Color="#F3CFA6" />
-            <GradientStop Offset="1" Color="#C38A5E" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="Cloth" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Offset="0" Color="#2E7D5E" />
-            <GradientStop Offset="1" Color="#123A2B" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="Staff" StartPoint="0,1" EndPoint="1,0">
             <GradientStop Offset="0" Color="#6E1410" />
@@ -50,69 +33,18 @@
     <Viewbox Stretch="UniformToFill" HorizontalAlignment="Right" VerticalAlignment="Bottom">
         <Canvas Width="720" Height="280" ClipToBounds="True">
 
-            <!-- Monkey King bust, drawn in 480×560 units, scaled into the right side of the panel -->
-            <Canvas>
-                <Canvas.RenderTransform>
-                    <TransformGroup>
-                        <ScaleTransform ScaleX="0.6" ScaleY="0.6" />
-                        <TranslateTransform X="428" Y="-14" />
-                    </TransformGroup>
-                </Canvas.RenderTransform>
+            <!-- staff, leaning across the right side, with gold bands at both ends -->
+            <Line X1="470" Y1="300" X2="690" Y2="10" Stroke="{StaticResource Staff}" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            <Line X1="470" Y1="300" X2="482" Y2="284" Stroke="{StaticResource GoldH}" StrokeThickness="13" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            <Line X1="678" Y1="26" X2="690" Y2="10" Stroke="{StaticResource GoldH}" StrokeThickness="13" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
 
-                <!-- staff -->
-                <Line X1="66" Y1="548" X2="424" Y2="36" Stroke="{StaticResource Staff}" StrokeThickness="17" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                <Line X1="66" Y1="548" X2="88" Y2="516" Stroke="{StaticResource GoldH}" StrokeThickness="22" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                <Line X1="402" Y1="68" X2="424" Y2="36" Stroke="{StaticResource GoldH}" StrokeThickness="22" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-
-                <!-- robe (jade green) + gold collar and belt -->
-                <Path Data="M84 560 L96 432 C108 368 170 330 240 330 C310 330 372 368 384 432 L396 560 Z" Fill="{StaticResource Cloth}" />
-                <Path Data="M196 334 L240 424 L284 334" Stroke="{StaticResource GoldH}" StrokeThickness="9" StrokeLineJoin="Round" />
-                <Line X1="120" Y1="470" X2="360" Y2="470" Stroke="#E8B33A" StrokeThickness="10" />
-
-                <!-- pauldrons -->
-                <Ellipse Canvas.Left="68" Canvas.Top="360" Width="120" Height="84" Fill="{StaticResource Gold}" />
-                <Ellipse Canvas.Left="292" Canvas.Top="360" Width="120" Height="84" Fill="{StaticResource Gold}" />
-                <Path Data="M78 398 q12 -10 24 0 q12 -10 24 0 q12 -10 24 0 q12 -10 24 0 M84 414 q12 -10 24 0 q12 -10 24 0 q12 -10 24 0 q12 -10 22 0 M304 398 q12 -10 24 0 q12 -10 24 0 q12 -10 24 0 q12 -10 24 0 M306 414 q12 -10 24 0 q12 -10 24 0 q12 -10 24 0 q12 -10 22 0"
-                      Stroke="#8A5A10" StrokeThickness="2.5" />
-
-                <!-- fur ruff -->
-                <Path Data="M148 336 L168 300 L180 330 L200 296 L212 328 L228 298 L240 328 L252 298 L268 328 L280 296 L300 330 L312 300 L332 336 C300 360 180 360 148 336 Z" Fill="{StaticResource Fur}" />
-
-                <!-- gourd at the hip -->
-                <Path Data="M300 470 C312 448 332 436 348 430" Stroke="#C8382E" StrokeThickness="4" />
-                <Ellipse Canvas.Left="345" Canvas.Top="426" Width="34" Height="40" Fill="{StaticResource Gourd}" />
-                <Ellipse Canvas.Left="333" Canvas.Top="460" Width="58" Height="64" Fill="{StaticResource Gourd}" />
-                <Rectangle Canvas.Left="345" Canvas.Top="461" Width="34" Height="7" RadiusX="3" RadiusY="3" Fill="#C8382E" />
-                <Rectangle Canvas.Left="358" Canvas.Top="416" Width="8" Height="10" RadiusX="2" RadiusY="2" Fill="#4A2A10" />
-                <Path Data="M380 466 l6 30 M384 465 l10 26 M376 467 l2 32" Stroke="#C8382E" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-
-                <!-- ears -->
-                <Ellipse Canvas.Left="117" Canvas.Top="187" Width="46" Height="58" Fill="{StaticResource Fur}" />
-                <Ellipse Canvas.Left="317" Canvas.Top="187" Width="46" Height="58" Fill="{StaticResource Fur}" />
-                <Ellipse Canvas.Left="130" Canvas.Top="201" Width="24" Height="34" Fill="#C98D63" />
-                <Ellipse Canvas.Left="326" Canvas.Top="201" Width="24" Height="34" Fill="#C98D63" />
-
-                <!-- head fur -->
-                <Path Data="M150 232 L130 196 L150 182 L136 146 L166 140 L162 104 L196 112 L206 78 L232 100 L252 70 L268 100 L294 84 L302 118 L332 110 L328 148 L352 152 L340 186 L358 200 L338 234 L348 264 L318 270 L314 298 L240 316 L166 298 L162 270 L132 264 Z" Fill="{StaticResource Fur}" />
-
-                <!-- face -->
-                <Path Data="M240 170 C220 140 168 150 172 206 C176 258 212 290 240 294 C268 290 304 258 308 206 C312 150 260 140 240 170 Z" Fill="{StaticResource Skin}" />
-                <Path Data="M184 198 C196 172 230 174 238 202 C222 214 198 216 184 198 Z M296 198 C284 172 250 174 242 202 C258 214 282 216 296 198 Z" Fill="#C8382E" Opacity="0.88" />
-                <Path Data="M196 202 C206 190 222 190 231 203 C220 210 206 210 196 202 Z M284 202 C274 190 258 190 249 203 C260 210 274 210 284 202 Z" Fill="#F7C531" />
-                <Ellipse Canvas.Left="211" Canvas.Top="197" Width="10" Height="10" Fill="#140A04" />
-                <Ellipse Canvas.Left="259" Canvas.Top="197" Width="10" Height="10" Fill="#140A04" />
-                <Path Data="M178 186 L236 194 L234 182 L182 172 Z M302 186 L244 194 L246 182 L298 172 Z" Fill="#2E1A0C" />
-                <Path Data="M230 236 Q240 246 250 236" Stroke="#6B3E22" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                <Path Data="M212 262 Q240 278 268 258" Stroke="#5A2A16" StrokeThickness="3.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                <Path Data="M256 264 L260 274 L263 262 Z" Fill="#FFFAF0" />
-
-                <!-- golden circlet -->
-                <Path Data="M160 170 Q240 126 320 170" Stroke="{StaticResource GoldH}" StrokeThickness="13" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                <Path Data="M170 162 Q240 126 310 162" Stroke="#FFF1B0" StrokeThickness="2.5" Opacity="0.8" />
-                <Path Data="M160 170 c-16 4 -20 24 -5 28 c11 3 13 -11 4 -13 M320 170 c16 4 20 24 5 28 c-11 3 -13 -11 -4 -13" Stroke="{StaticResource Gold}" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                <Path Data="M240 136 L250 148 L240 160 L230 148 Z" Fill="{StaticResource Gold}" Stroke="#8A5A10" StrokeThickness="1.5" />
-                <Ellipse Canvas.Left="236" Canvas.Top="144" Width="8" Height="8" Fill="#C8382E" />
-            </Canvas>
+            <!-- gourd hanging from the staff on a red cord -->
+            <Path Data="M591 140 C594 146 598 150 600 158" Stroke="#C8382E" StrokeThickness="2.5" StrokeStartLineCap="Round" />
+            <Rectangle Canvas.Left="596" Canvas.Top="156" Width="8" Height="9" RadiusX="2" RadiusY="2" Fill="#4A2A10" />
+            <Ellipse Canvas.Left="585" Canvas.Top="164" Width="30" Height="36" Fill="{StaticResource Gourd}" />
+            <Ellipse Canvas.Left="574" Canvas.Top="194" Width="52" Height="58" Fill="{StaticResource Gourd}" />
+            <Rectangle Canvas.Left="585" Canvas.Top="195" Width="30" Height="6" RadiusX="3" RadiusY="3" Fill="#C8382E" />
+            <Path Data="M614 199 l5 26 M617 198 l9 22 M611 200 l1 28" Stroke="#C8382E" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
 
             <!-- golden clouds along the bottom of the scroll -->
             <Canvas>

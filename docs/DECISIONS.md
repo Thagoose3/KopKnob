@@ -208,3 +208,4 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - Third theme, "Glass": the Dynamic Island shape in smoky translucent dark glass (`Themes/Glass.xaml`), a light hairline edge and a soft top sheen (`NotchWindow.UseGlassTheme`).
 - No real blur. A layered transparent window only gets acrylic through the undocumented SetWindowCompositionAttribute, which blurs the whole 720 px window rectangle; we would need a window region following the pill↔panel animation every frame (jagged corners, possible stutter). Fake frosted glass costs nothing at idle; real blur can be layered on later.
 - The drag snap preview still switches the outline to the accent colour, then back to the glass edge.
+- Scroll theme: the Monkey King figure was removed from the paper (user found it unattractive); the ornament is now just the staff, a gourd hanging from it, and golden clouds.
