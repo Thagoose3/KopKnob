@@ -19,7 +19,7 @@ public sealed class TrayIcon : IDisposable
         var menu = new ContextMenuStrip();
         menu.Items.Add("Open", null, (_, _) => OpenRequested?.Invoke());
 
-        menu.Items.Add("Edit layout", null, (_, _) => EditLayoutRequested?.Invoke());
+        menu.Items.Add("Settings…", null, (_, _) => EditLayoutRequested?.Invoke());
 
         // Quick placements; the knob can also be dragged out of the open panel and dropped on an edge.
         var positionMenu = new ToolStripMenuItem("Position");

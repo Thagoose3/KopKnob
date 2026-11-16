@@ -49,8 +49,8 @@ public sealed class PageHost : DockPanel
         // Header
         _date = Ui.Text("", 10, Ui.Subtle, FontWeights.SemiBold);
         _time = Ui.Text("", 10, Ui.Subtle, FontWeights.SemiBold);
-        var more = Ui.IconButton("", (_, _) => ToggleCustomize(), 26, 18, ghost: true);
-        more.ToolTip = "Customize tabs";
+        var more = Ui.IconButton("", (_, _) => ToggleSettings(), 26, 18, ghost: true);
+        more.ToolTip = "Settings";
         ((TextBlock)more.Content).FontSize = 10;
         var header = new DockPanel { Margin = new Thickness(4, 0, 0, 6) };
         DockPanel.SetDock(more, Dock.Right);
@@ -108,8 +108,8 @@ public sealed class PageHost : DockPanel
     public void Show(string id)
     {
         if (!_pages.TryGetValue(id, out var page)) return;
+        if (_open && _current is not null && !_customizing) Notify(_current, opened: false);
         _customizing = false;
-        if (_open && _current is not null) Notify(_current, opened: false);
 
         _current = page;
         if (page.Recreate || !_views.TryGetValue(id, out var view))
@@ -128,18 +128,25 @@ public sealed class PageHost : DockPanel
         RebuildNav();
     }
 
-    public void ShowCustomize()
+    /// <summary>Builds the settings view, opened at a section ("tabs", "alerts", …) or the first one.</summary>
+    public Func<string?, FrameworkElement>? SettingsFactory { get; set; }
+
+    /// <summary>Show settings in place of the page (the ··· button, tray "Settings…").</summary>
+    public void ShowSettings(string? section = null)
     {
-        if (_open && _current is not null) Notify(_current, opened: false);
+        if (_open && _current is not null && !_customizing) Notify(_current, opened: false);
         _customizing = true;
-        _content.Child = CustomizeView();
+        _content.Child = SettingsFactory?.Invoke(section) ?? CustomizeView();
         RebuildNav();
     }
 
-    private void ToggleCustomize()
+    /// <summary>Leave settings, back to the page that was showing.</summary>
+    public void CloseSettings() => Show(_current?.Id ?? _tabs.Visible[0]);
+
+    private void ToggleSettings()
     {
-        if (_customizing) Show(_current?.Id ?? _tabs.Visible[0]);
-        else ShowCustomize();
+        if (_customizing) CloseSettings();
+        else ShowSettings();
     }
 
     public void OnPanelOpened()
@@ -227,8 +234,20 @@ public sealed class PageHost : DockPanel
         }
     }
 
-    /// <summary>Show/hide tabs and change their order. Changes apply and save immediately.</summary>
+    /// <summary>Fallback when no settings view is set: just the tab editor with a Done button.</summary>
     private FrameworkElement CustomizeView()
+    {
+        var done = new Button { Content = "Done", Padding = new Thickness(16, 3, 16, 3), Background = Ui.Accent, HorizontalAlignment = HorizontalAlignment.Right };
+        done.Click += (_, _) => CloseSettings();
+        var root = new DockPanel();
+        DockPanel.SetDock(done, Dock.Bottom);
+        root.Children.Add(done);
+        root.Children.Add(TabsEditor());
+        return root;
+    }
+
+    /// <summary>Show/hide tabs and change their order (two columns). Changes apply and save immediately.</summary>
+    public FrameworkElement TabsEditor()
     {
         var list = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, VerticalAlignment = VerticalAlignment.Top };
         void Fill()
@@ -270,20 +289,6 @@ public sealed class PageHost : DockPanel
         }
 
         Fill();
-
-        var done = new Button { Content = "Done", Padding = new Thickness(16, 3, 16, 3), Background = Ui.Accent, HorizontalAlignment = HorizontalAlignment.Right };
-        done.Click += (_, _) => Show(_current?.Id ?? _tabs.Visible[0]);
-        var title = Ui.Title("Tabs — tick to show, arrows to reorder");
-
-        var root = new DockPanel();
-        DockPanel.SetDock(title, Dock.Top);
-        title.Margin = new Thickness(4, 0, 0, 6);
-        root.Children.Add(title);
-        DockPanel.SetDock(done, Dock.Bottom);
-        root.Children.Add(done);
-        // Two columns so ten tabs fit without scrolling.
-        var scroll = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, Focusable = false, Margin = new Thickness(4, 0, 4, 4) };
-        root.Children.Add(scroll);
-        return root;
+        return new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, Focusable = false };
     }
 }

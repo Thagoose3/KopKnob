@@ -4,6 +4,19 @@ namespace Knob.Core.Tests.Input;
 
 public class HotkeyParserTests
 {
+    [Theory]
+    [InlineData(HotkeyModifiers.Control | HotkeyModifiers.Alt, 'K', "Ctrl+Alt+K")]
+    [InlineData(HotkeyModifiers.Win | HotkeyModifiers.Shift, 0x70, "Shift+Win+F1")]
+    [InlineData(HotkeyModifiers.None, 'K', null)]                         // needs a modifier
+    [InlineData(HotkeyModifiers.Control, 0x10, null)]                      // Shift alone isn't a key
+    [InlineData(HotkeyModifiers.Control, 0xBA, null)]                      // unsupported key
+    public void FromKeys_RoundTripsThroughParse(HotkeyModifiers mods, int vk, string? expected)
+    {
+        var text = HotkeyParser.FromKeys(mods, vk);
+        Assert.Equal(expected, text);
+        if (text is not null) Assert.Equal(new Hotkey(mods, vk), HotkeyParser.Parse(text));
+    }
+
     [Fact]
     public void Parses_CtrlAltLetter()
     {

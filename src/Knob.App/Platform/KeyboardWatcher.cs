@@ -44,8 +44,18 @@ public sealed class KeyboardWatcher : IDisposable
     /// <summary>Raised with the new Caps Lock state.</summary>
     public event Action<bool>? CapsLockChanged;
 
+    public bool Running => _hook != IntPtr.Zero;
+
+    public void Stop()
+    {
+        if (_hook != IntPtr.Zero) UnhookWindowsHookEx(_hook);
+        _hook = IntPtr.Zero;
+        DiagLog.Write("Keyboard watcher: off");
+    }
+
     public void Start()
     {
+        if (_hook != IntPtr.Zero) return;
         _lastLayout = ForegroundLayout();
         using var module = Process.GetCurrentProcess().MainModule;
         _hook = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(module?.ModuleName), 0);

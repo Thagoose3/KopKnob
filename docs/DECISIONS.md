@@ -223,3 +223,8 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - TH/EN + Caps Lock: a WH_KEYBOARD_LL hook reads only the vkCode of key-ups of the switch keys (` ~, Alt/Ctrl+Shift, Win+Space, Caps Lock) and checks the foreground window's layout 150 ms later; no keystrokes are stored. Labels in Core (KeyboardLanguage).
 - Camera/mic dots (green/orange) from CapabilityAccessManager\ConsentStore (LastUsedTimeStop = 0), watched with RegNotifyChangeKeyValue on a sleeping background thread; a message names the app when it starts.
 - Battery: Bluetooth device ≤ 15% (checked on device changes and every 15 min via the pill's minute tick), laptop charged past 80% while charging (only when crossing, not when already full at start/plug-in). ThresholdAlarm in Core; thresholds in settings "Alerts" (0 = off).
+
+## Settings view; CPU rendering
+
+- Settings in the panel (··· button, tray "Settings…"): General (theme, run at startup, hide in full screen, hover delay, GPU drawing), Alerts (keyboard language, Caps Lock, privacy dots, weather on pill, charge limit, device low battery), Hotkeys (click a box and press the combination; hotkeys are unregistered while recording), Tabs (the old customize view), About. Everything applies at once except theme and GPU drawing, which restart Knob.
+- Software rendering by default (RenderOptions.ProcessRenderMode = SoftwareOnly). Measured: private memory 166 MB → 31 MB, working set 209 MB → 122 MB, no Intel/NVIDIA driver DLLs loaded (the discrete GPU is no longer woken). Idle CPU unchanged (~0%). The knob is a small layered window that WPF reads back from the GPU anyway. "GPU drawing" in Settings switches back.

@@ -15,6 +15,8 @@ public sealed class AppSettings : IJsonNormalizable
     public int HoverOpenDelayMs { get; set; } = 120;
     public int CloseDelayMs { get; set; } = 350;
     public bool HideOnFullscreen { get; set; } = true;
+    /// <summary>Draw with the GPU. Off by default: CPU drawing avoids loading the graphics drivers (~120 MB) and waking a discrete GPU.</summary>
+    public bool HardwareRendering { get; set; }
     public bool RunAtStartup { get; set; }
     public HotkeySettings Hotkeys { get; set; } = new();
     public int ClipboardMaxItems { get; set; } = 50;

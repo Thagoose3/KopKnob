@@ -89,6 +89,13 @@ public static class HotkeyParser
         return key is null || mods == HotkeyModifiers.None ? null : new Hotkey(mods, key.Value);
     }
 
+    /// <summary>Settings text for a pressed combination ("Ctrl+Alt+K"), or null if it can't be a hotkey.</summary>
+    public static string? FromKeys(HotkeyModifiers modifiers, int virtualKey)
+    {
+        if (modifiers == HotkeyModifiers.None || !Keys.ContainsValue(virtualKey)) return null;
+        return new Hotkey(modifiers, virtualKey).ToString();
+    }
+
     internal static string KeyName(int vk) =>
         Keys.FirstOrDefault(p => p.Value == vk).Key ?? $"0x{vk:X2}";
 }

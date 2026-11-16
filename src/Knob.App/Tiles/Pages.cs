@@ -132,6 +132,59 @@ internal static class Pages
         return (root, v => { value = Math.Clamp(v, 0, 1); Show(); });
     }
 
+    /// <summary>On/off switch in the theme colours. <paramref name="changed"/> runs when the user flips it.</summary>
+    public static (FrameworkElement Switch, Action<bool> Set) Toggle(bool on, Action<bool> changed)
+    {
+        var knob = new System.Windows.Shapes.Ellipse { Width = 14, Height = 14, Fill = Ui.Fg, VerticalAlignment = VerticalAlignment.Center };
+        var track = new Border { Width = 36, Height = 20, CornerRadius = new CornerRadius(10), Padding = new Thickness(3, 0, 3, 0), Child = knob, Cursor = Cursors.Hand };
+        void Show()
+        {
+            track.Background = on ? Ui.Accent : Ui.Control;
+            knob.Fill = on ? Ui.AccentFg : Ui.Subtle;
+            knob.HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        }
+        track.MouseLeftButtonUp += (_, e) =>
+        {
+            on = !on;
+            Show();
+            changed(on);
+            e.Handled = true;
+        };
+        Show();
+        return (track, v => { on = v; Show(); });
+    }
+
+    /// <summary>A row of buttons where one is selected (segmented control).</summary>
+    public static FrameworkElement Choice<T>(IReadOnlyList<(string Label, T Value)> options, T selected, Action<T> picked)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        var buttons = new List<(Button Button, T Value)>();
+        void Show()
+        {
+            foreach (var (b, v) in buttons)
+            {
+                var sel = EqualityComparer<T>.Default.Equals(v, selected);
+                b.Background = sel ? Ui.Accent : Ui.Control;
+                b.Foreground = sel ? Ui.AccentFg : Ui.Fg;
+            }
+        }
+        foreach (var (label, value) in options)
+        {
+            var b = new Button { Content = label, Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 0, 4, 0), MinWidth = 40, Height = 24 };
+            b.Click += (_, _) =>
+            {
+                if (EqualityComparer<T>.Default.Equals(value, selected)) return;
+                selected = value;
+                Show();
+                picked(value);
+            };
+            buttons.Add((b, value));
+            row.Children.Add(b);
+        }
+        Show();
+        return row;
+    }
+
     /// <summary>Thin rounded progress bar; returns the bar and a setter for 0–1.</summary>
     public static (Grid Bar, Action<double> Set) Bar(Brush fill, double height = 4)
     {

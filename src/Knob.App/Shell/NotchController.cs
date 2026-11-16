@@ -85,6 +85,13 @@ public sealed class NotchController
         if (IsExpanded && !_holdOpen && !_keepOpen) { _closeTimer.Stop(); _closeTimer.Start(); }
     }
 
+    /// <summary>Re-read the hover/close delays after they changed in settings.</summary>
+    public void ApplyDelays(AppSettings settings)
+    {
+        _openTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(0, settings.HoverOpenDelayMs));
+        _closeTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(0, settings.CloseDelayMs));
+    }
+
     /// <summary>The wheel turned on the collapsed pill: it's being used as a volume knob, so don't open on this hover.</summary>
     public void CancelHoverOpen() => _openTimer.Stop();
 

@@ -15,8 +15,8 @@ public sealed class DeviceAlerts : IDisposable
     private readonly Action<string> _show;
     private readonly PillStatus _pill;
     private readonly Knob.Core.Storage.AlertSettings _settings;
-    private readonly Knob.Core.Devices.ThresholdAlarm _chargeAlarm;
-    private readonly Knob.Core.Devices.ThresholdAlarm _deviceAlarm;
+    private Knob.Core.Devices.ThresholdAlarm _chargeAlarm;
+    private Knob.Core.Devices.ThresholdAlarm _deviceAlarm;
     private bool? _onAc;
     private int _minutes;
 
@@ -90,6 +90,14 @@ public sealed class DeviceAlerts : IDisposable
         var devices = await _bluetooth.ReadBatteriesAsync();
         if (devices.FirstOrDefault(d => d.Name == name)?.Battery is int pct)
             Show($"{name} · \U0001F50B {pct}%");
+    }
+
+    /// <summary>Thresholds changed in settings: start over with the new ones.</summary>
+    public void ApplySettings()
+    {
+        _chargeAlarm = new(_settings.ChargeLimit, _settings.ChargeLimit - 5, below: false);
+        _deviceAlarm = new(_settings.DeviceLowBattery, _settings.DeviceLowBattery + 5, below: true);
+        ArmChargeAlarmIfAlreadyFull();
     }
 
     /// <summary>Plugged in when already past the limit: nothing to warn about until it is unplugged again.</summary>

@@ -12,7 +12,7 @@ using Knob.Core.Storage;
 namespace Knob.App;
 
 /// <summary>Composition root: single instance, settings, window, pill status, pages, tools, hotkeys, tray.</summary>
-public partial class App : Application
+public partial class App : Application, ISettingsHost
 {
     private const string MutexName = "Knob.SingleInstance";
 
@@ -56,12 +56,19 @@ public partial class App : Application
         base.OnStartup(e);
         InstallCrashHandlers();
 
+
         _settingsStore = new JsonStore<AppSettings>(KnobPaths.Settings);
         _settings = _settingsStore.Load();
 
         // Registry is the source of truth for autostart; keep settings in sync with it.
         StartupRegistration.RefreshPathIfEnabled();
         _settings.RunAtStartup = StartupRegistration.IsEnabled();
+
+        // Draw on the CPU unless asked otherwise. The knob is a small layered (per-pixel transparent) window, which
+        // WPF reads back from the GPU anyway; hardware rendering loads the graphics drivers (≈120 MB private memory
+        // here) and on hybrid laptops wakes the discrete GPU.
+        if (!_settings.HardwareRendering)
+            System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
 
         // Theme colours must be in place before any window or view reads them.
         var scrollTheme = _settings.Theme == AppSettings.ThemeScroll;
@@ -98,7 +105,7 @@ public partial class App : Application
         _tray.EditLayoutRequested += () =>
         {
             _controller.RequestOpen();
-            _pages!.ShowCustomize();
+            _pages!.ShowSettings();
             ActivateForKeyboard(); // so a click elsewhere closes it
         };
 
@@ -229,59 +236,115 @@ public partial class App : Application
         _pillStatus!.MinuteTick += () => _ = _weather.RefreshAsync();
         _ = _weather.RefreshAsync();
 
-        // The pill is hidden while the panel is open: messages go to the header there.
-        void Say(string text, TimeSpan duration)
-        {
-            if (_controller!.IsExpanded) _pages!.Flash(text, duration);
-            else _window!.ShowPillMessage(text, duration);
-        }
         var alerts = _settings.Alerts;
         _alerts = new DeviceAlerts(_window, _bluetooth, _pillStatus!, alerts, text => Say(text, TimeSpan.FromSeconds(3)));
 
-        // Input language (TH/EN) and Caps Lock, shown briefly.
-        if (alerts.KeyboardLanguage || alerts.CapsLock)
+        // Input language (TH/EN) and Caps Lock, shown briefly. The hook runs only while one of them is on.
+        _keyboard = new KeyboardWatcher(Dispatcher);
+        _keyboard.LanguageChanged += lang =>
         {
-            _keyboard = new KeyboardWatcher(Dispatcher);
-            if (alerts.KeyboardLanguage)
-                _keyboard.LanguageChanged += lang =>
-                {
-                    if (Knob.Core.Devices.KeyboardLanguage.Label(lang) is string label) Say(label, TimeSpan.FromMilliseconds(900));
-                };
-            if (alerts.CapsLock)
-                _keyboard.CapsLockChanged += on => Say(on ? "⇪ CAPS LOCK" : "caps lock off", TimeSpan.FromMilliseconds(900));
-            _keyboard.Start();
-        }
+            if (_settings.Alerts.KeyboardLanguage && Knob.Core.Devices.KeyboardLanguage.Label(lang) is string label)
+                Say(label, TimeSpan.FromMilliseconds(900));
+        };
+        _keyboard.CapsLockChanged += on =>
+        {
+            if (_settings.Alerts.CapsLock) Say(on ? "⇪ CAPS LOCK" : "caps lock off", TimeSpan.FromMilliseconds(900));
+        };
 
         // Camera / microphone in use: dots on the pill, and a short message when an app starts using one.
-        if (alerts.PrivacyDots)
+        // (The watcher sleeps on a registry notification, so it costs nothing to keep it running.)
+        _privacy = new PrivacyWatcher(Dispatcher);
+        IReadOnlyList<string> cam = [], mic = [];
+        _privacy.Changed += () =>
         {
-            _privacy = new PrivacyWatcher(Dispatcher);
-            IReadOnlyList<string> cam = [], mic = [];
-            _privacy.Changed += () =>
-            {
-                _window.SetPrivacy(_privacy.CameraApps, _privacy.MicrophoneApps);
-                var newCam = _privacy.CameraApps.Except(cam).ToList();
-                var newMic = _privacy.MicrophoneApps.Except(mic).ToList();
-                if (newCam.Count > 0) Say($"\U0001F4F7 Camera on · {string.Join(", ", newCam)}", TimeSpan.FromSeconds(3));
-                else if (newMic.Count > 0) Say($"\U0001F399 Microphone on · {string.Join(", ", newMic)}", TimeSpan.FromSeconds(3));
-                cam = _privacy.CameraApps;
-                mic = _privacy.MicrophoneApps;
-            };
-            _privacy.Start();
+            var on = _settings.Alerts.PrivacyDots;
+            _window.SetPrivacy(on ? _privacy.CameraApps : [], on ? _privacy.MicrophoneApps : []);
+            var newCam = _privacy.CameraApps.Except(cam).ToList();
+            var newMic = _privacy.MicrophoneApps.Except(mic).ToList();
+            if (on && newCam.Count > 0) Say($"\U0001F4F7 Camera on · {string.Join(", ", newCam)}", TimeSpan.FromSeconds(3));
+            else if (on && newMic.Count > 0) Say($"\U0001F399 Microphone on · {string.Join(", ", newMic)}", TimeSpan.FromSeconds(3));
+            cam = _privacy.CameraApps;
+            mic = _privacy.MicrophoneApps;
+        };
+        _privacy.Start();
+
+        _pages.SettingsFactory = section => SettingsView.Create(this, section);
+        ApplyAlerts();
+    }
+
+    /// <summary>The pill is hidden while the panel is open: messages go to the header there.</summary>
+    private void Say(string text, TimeSpan duration)
+    {
+        if (_controller!.IsExpanded) _pages!.Flash(text, duration);
+        else _window!.ShowPillMessage(text, duration);
+    }
+
+    // ───────── ISettingsHost (the Settings view) ─────────
+
+    public AppSettings Settings => _settings;
+
+    public void Save() => SaveSettings();
+
+    public bool SetRunAtStartup(bool on)
+    {
+        OnRunAtStartupToggled(on);
+        if (_tray is not null) _tray.RunAtStartupChecked = _settings.RunAtStartup;
+        return _settings.RunAtStartup;
+    }
+
+    public void SetHideOnFullscreen(bool on)
+    {
+        _settings.HideOnFullscreen = on;
+        SaveSettings();
+        if (on && _fullscreen is null)
+        {
+            _fullscreen = new FullscreenWatcher();
+            _fullscreen.FullscreenChanged += hidden => _window!.SetFullscreenHidden(hidden);
+        }
+        else if (!on && _fullscreen is not null)
+        {
+            _fullscreen.Dispose();
+            _fullscreen = null;
+            _window!.SetFullscreenHidden(false);
         }
     }
+
+    public void ApplyAlerts()
+    {
+        var a = _settings.Alerts;
+        _controller!.ApplyDelays(_settings);
+        if (a.KeyboardLanguage || a.CapsLock) _keyboard!.Start();
+        else if (_keyboard!.Running) _keyboard.Stop();
+        _window!.SetPrivacy(a.PrivacyDots ? _privacy!.CameraApps : [], a.PrivacyDots ? _privacy!.MicrophoneApps : []);
+        _alerts!.ApplySettings();
+        UpdatePillWeather();
+    }
+
+    public void SuspendHotkeys()
+    {
+        _hotkeys?.Dispose();
+        _hotkeys = null;
+    }
+
+    public IReadOnlyList<string> ApplyHotkeys() => RegisterHotkeys(warn: false);
+
+    public FrameworkElement TabsEditor() => _pages!.TabsEditor();
+
+    public void OpenPage(string id) => _pages!.Show(id);
+
+    public void Close() => _pages!.CloseSettings();
 
     private static string VolumeText(int percent) => percent == 0 ? "\U0001F507 Muted" : $"\U0001F50A {percent}%";
 
     private void UpdatePillWeather() =>
         _window?.SetPillWeather(_settings.Weather.ShowOnPill ? WeatherTile.PillText(_weather?.Report) : null);
 
-    private void OpenCalculator() => OpenPage("calc");
+    private void OpenCalculator() => OpenPageForTyping("calc");
 
-    private void OpenQr() => OpenPage("qr");
+    private void OpenQr() => OpenPageForTyping("qr");
 
     /// <summary>Open the panel straight onto a page that takes typing (hotkeys).</summary>
-    private void OpenPage(string id)
+    private void OpenPageForTyping(string id)
     {
         _controller!.RequestOpen();
         _pages!.Show(id);
@@ -295,8 +358,9 @@ public partial class App : Application
         if (!_window.IsActive && !_controller!.PointerInside) _controller.PointerExited();
     }
 
-    private void RegisterHotkeys()
+    private IReadOnlyList<string> RegisterHotkeys(bool warn = true)
     {
+        _hotkeys?.Dispose();
         _hotkeys = new HotkeyManager();
         var failed = new List<string>();
         void Add(string name, string combo, Action action)
@@ -308,8 +372,9 @@ public partial class App : Application
         Add("QR code", _settings.Hotkeys.Qr, OpenQr);
         Add("Text capture", _settings.Hotkeys.TextCapture, () => _textCapture!.Start());
 
-        if (failed.Count > 0)
+        if (warn && failed.Count > 0)
             _tray?.ShowWarning("Knob: hotkey not available", "Already used or invalid: " + string.Join(", ", failed));
+        return failed;
     }
 
     private void OnTrayOpen()
@@ -336,10 +401,23 @@ public partial class App : Application
     /// Themes are applied at startup (every view reads its colours once), so switching saves the choice and
     /// restarts Knob. The single-instance mutex is released first so the new process can take it.
     /// </summary>
-    private void ChangeTheme(string theme)
+    public void ChangeTheme(string theme)
     {
         if (theme == _settings.Theme) return;
         _settings.Theme = theme;
+        Restart();
+    }
+
+    public void SetHardwareRendering(bool on)
+    {
+        if (on == _settings.HardwareRendering) return;
+        _settings.HardwareRendering = on;
+        Restart(); // the render mode is fixed for the life of the process
+    }
+
+    /// <summary>Save and start a fresh Knob (the single-instance mutex is released first).</summary>
+    private void Restart()
+    {
         SaveSettings();
         _notes?.Save();
 
@@ -356,7 +434,7 @@ public partial class App : Application
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            CrashLog.Write("Restart after theme change", ex);
+            CrashLog.Write("Restart", ex);
         }
         Shutdown();
     }
