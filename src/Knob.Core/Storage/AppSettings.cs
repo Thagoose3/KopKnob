@@ -21,6 +21,7 @@ public sealed class AppSettings : IJsonNormalizable
     public DockSettings Dock { get; set; } = new();
     public TabSettings Tabs { get; set; } = new();
     public WeatherSettings Weather { get; set; } = new();
+    public AlertSettings Alerts { get; set; } = new();
 
     public void Normalize()
     {
@@ -33,9 +34,31 @@ public sealed class AppSettings : IJsonNormalizable
         Dock.Normalize();
         Weather ??= new WeatherSettings();
         Weather.Normalize();
+        Alerts ??= new AlertSettings();
+        Alerts.Normalize();
         if (HoverOpenDelayMs < 0) HoverOpenDelayMs = 120;
         if (CloseDelayMs < 0) CloseDelayMs = 350;
         if (ClipboardMaxItems <= 0) ClipboardMaxItems = 50;
+    }
+}
+
+/// <summary>Which pill alerts are on, and their thresholds (0 turns a battery alert off).</summary>
+public sealed class AlertSettings
+{
+    /// <summary>Tell me when the laptop has charged to this percent (battery care). 0 = off.</summary>
+    public int ChargeLimit { get; set; } = 80;
+    /// <summary>Warn when a connected Bluetooth device drops to this percent. 0 = off.</summary>
+    public int DeviceLowBattery { get; set; } = 15;
+    /// <summary>Show TH/EN when the input language is switched.</summary>
+    public bool KeyboardLanguage { get; set; } = true;
+    public bool CapsLock { get; set; } = true;
+    /// <summary>Green/orange dots while the camera/microphone is in use.</summary>
+    public bool PrivacyDots { get; set; } = true;
+
+    public void Normalize()
+    {
+        ChargeLimit = ChargeLimit is >= 50 and <= 100 ? ChargeLimit : ChargeLimit <= 0 ? 0 : 80;
+        DeviceLowBattery = DeviceLowBattery is >= 1 and <= 50 ? DeviceLowBattery : DeviceLowBattery <= 0 ? 0 : 15;
     }
 }
 

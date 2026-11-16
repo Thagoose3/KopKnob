@@ -35,6 +35,11 @@
 
                 <Grid x:Name="PillContent" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel x:Name="PillNormal" Orientation="Horizontal">
+                        <!-- Privacy indicators, as on phones: green = camera in use, orange = microphone in use -->
+                        <Ellipse x:Name="CameraDot" Width="7" Height="7" Margin="0,0,6,0" VerticalAlignment="Center"
+                                 Fill="#30D158" Visibility="Collapsed" />
+                        <Ellipse x:Name="MicDot" Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center"
+                                 Fill="#FF9F0A" Visibility="Collapsed" />
                         <Ellipse x:Name="CoffeeDot" Width="6" Height="6" Margin="0,0,8,0" VerticalAlignment="Center"
                                  Fill="{StaticResource AccentBrush}" Visibility="Collapsed" />
                         <TextBlock x:Name="TimeText" Text="--:--" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />

@@ -38,6 +38,8 @@ public partial class App : Application
     private BluetoothMonitor? _bluetooth;
     private WeatherService? _weather;
     private DeviceAlerts? _alerts;
+    private KeyboardWatcher? _keyboard;
+    private PrivacyWatcher? _privacy;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -227,12 +229,46 @@ public partial class App : Application
         _pillStatus!.MinuteTick += () => _ = _weather.RefreshAsync();
         _ = _weather.RefreshAsync();
 
-        _alerts = new DeviceAlerts(_window, _bluetooth, text =>
+        // The pill is hidden while the panel is open: messages go to the header there.
+        void Say(string text, TimeSpan duration)
         {
-            // The pill is hidden while the panel is open: put it in the header there.
-            if (_controller!.IsExpanded) _pages.Flash(text, TimeSpan.FromSeconds(3));
-            else _window.ShowPillMessage(text, TimeSpan.FromSeconds(3));
-        });
+            if (_controller!.IsExpanded) _pages!.Flash(text, duration);
+            else _window!.ShowPillMessage(text, duration);
+        }
+        var alerts = _settings.Alerts;
+        _alerts = new DeviceAlerts(_window, _bluetooth, _pillStatus!, alerts, text => Say(text, TimeSpan.FromSeconds(3)));
+
+        // Input language (TH/EN) and Caps Lock, shown briefly.
+        if (alerts.KeyboardLanguage || alerts.CapsLock)
+        {
+            _keyboard = new KeyboardWatcher(Dispatcher);
+            if (alerts.KeyboardLanguage)
+                _keyboard.LanguageChanged += lang =>
+                {
+                    if (Knob.Core.Devices.KeyboardLanguage.Label(lang) is string label) Say(label, TimeSpan.FromMilliseconds(900));
+                };
+            if (alerts.CapsLock)
+                _keyboard.CapsLockChanged += on => Say(on ? "⇪ CAPS LOCK" : "caps lock off", TimeSpan.FromMilliseconds(900));
+            _keyboard.Start();
+        }
+
+        // Camera / microphone in use: dots on the pill, and a short message when an app starts using one.
+        if (alerts.PrivacyDots)
+        {
+            _privacy = new PrivacyWatcher(Dispatcher);
+            IReadOnlyList<string> cam = [], mic = [];
+            _privacy.Changed += () =>
+            {
+                _window.SetPrivacy(_privacy.CameraApps, _privacy.MicrophoneApps);
+                var newCam = _privacy.CameraApps.Except(cam).ToList();
+                var newMic = _privacy.MicrophoneApps.Except(mic).ToList();
+                if (newCam.Count > 0) Say($"\U0001F4F7 Camera on · {string.Join(", ", newCam)}", TimeSpan.FromSeconds(3));
+                else if (newMic.Count > 0) Say($"\U0001F399 Microphone on · {string.Join(", ", newMic)}", TimeSpan.FromSeconds(3));
+                cam = _privacy.CameraApps;
+                mic = _privacy.MicrophoneApps;
+            };
+            _privacy.Start();
+        }
     }
 
     private static string VolumeText(int percent) => percent == 0 ? "\U0001F507 Muted" : $"\U0001F50A {percent}%";
@@ -338,6 +374,8 @@ public partial class App : Application
         Microsoft.Win32.SystemEvents.SessionSwitch -= OnSessionSwitch;
         _fullscreen?.Dispose();
         _alerts?.Dispose();
+        _keyboard?.Dispose();
+        _privacy?.Dispose();
         _bluetooth?.Dispose();
         _hotkeys?.Dispose();
         _notes?.Save();

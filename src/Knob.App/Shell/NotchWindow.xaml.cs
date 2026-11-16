@@ -394,6 +394,16 @@ public partial class NotchWindow : Window
         return new Rect(origin, new Size(Surface.ActualWidth, Surface.ActualHeight)).Contains(p);
     }
 
+    /// <summary>Camera / microphone in-use dots on the pill, with the app names as tooltips.</summary>
+    public void SetPrivacy(IReadOnlyList<string> cameraApps, IReadOnlyList<string> micApps)
+    {
+        CameraDot.Visibility = cameraApps.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MicDot.Visibility = micApps.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        CameraDot.ToolTip = cameraApps.Count > 0 ? "Camera in use: " + string.Join(", ", cameraApps) : null;
+        MicDot.ToolTip = micApps.Count > 0 ? "Microphone in use: " + string.Join(", ", micApps) : null;
+        UpdatePillLength();
+    }
+
     /// <summary>Weather next to the clock on the pill ("☀ 31°"); null hides it.</summary>
     public void SetPillWeather(string? text)
     {

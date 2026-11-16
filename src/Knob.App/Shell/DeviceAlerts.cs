@@ -13,14 +13,23 @@ public sealed class DeviceAlerts : IDisposable
     private readonly NotchWindow _window;
     private readonly BluetoothMonitor _bluetooth;
     private readonly Action<string> _show;
+    private readonly PillStatus _pill;
+    private readonly Knob.Core.Storage.AlertSettings _settings;
+    private readonly Knob.Core.Devices.ThresholdAlarm _chargeAlarm;
+    private readonly Knob.Core.Devices.ThresholdAlarm _deviceAlarm;
     private bool? _onAc;
+    private int _minutes;
 
     /// <param name="show">Shows a message: on the pill when collapsed, in the panel header when open.</param>
-    public DeviceAlerts(NotchWindow window, BluetoothMonitor bluetooth, Action<string> show)
+    public DeviceAlerts(NotchWindow window, BluetoothMonitor bluetooth, PillStatus pill, Knob.Core.Storage.AlertSettings settings, Action<string> show)
     {
         _window = window;
         _bluetooth = bluetooth;
+        _pill = pill;
+        _settings = settings;
         _show = show;
+        _chargeAlarm = new(settings.ChargeLimit, settings.ChargeLimit - 5, below: false);
+        _deviceAlarm = new(settings.DeviceLowBattery, settings.DeviceLowBattery + 5, below: true);
         _onAc = System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus switch
         {
             System.Windows.Forms.PowerLineStatus.Online => true,
@@ -31,6 +40,9 @@ public sealed class DeviceAlerts : IDisposable
         _window.PowerSourceChanged += OnPowerSource;
         _window.DriveChanged += OnDriveChanged;
         _bluetooth.ConnectionChanged += OnBluetooth;
+        _bluetooth.Changed += OnBluetoothListChanged;
+        _pill.MinuteTick += OnMinute;
+        ArmChargeAlarmIfAlreadyFull();
         DiagLog.Write($"Alerts ready (power: {(_onAc is null ? "unknown" : _onAc.Value ? "AC" : "battery")}, Bluetooth connected: {_bluetooth.Connected.Count})");
     }
 
@@ -38,6 +50,8 @@ public sealed class DeviceAlerts : IDisposable
     {
         if (_onAc == onAc) return; // the registration sends the current state once; nothing changed
         _onAc = onAc;
+        if (onAc) ArmChargeAlarmIfAlreadyFull();
+        else _chargeAlarm.Reset("pc");
         var pct = PowerStatus.BatteryPercent();
         var tail = pct is int p ? $" · {p}%" : "";
         Show(onAc ? $"⚡ Charging{tail}" : $"\U0001F50C Unplugged{tail}");
@@ -78,6 +92,35 @@ public sealed class DeviceAlerts : IDisposable
             Show($"{name} · \U0001F50B {pct}%");
     }
 
+    /// <summary>Plugged in when already past the limit: nothing to warn about until it is unplugged again.</summary>
+    private void ArmChargeAlarmIfAlreadyFull()
+    {
+        if (_settings.ChargeLimit > 0 && _onAc == true && PowerStatus.BatteryPercent() is int pct)
+            _chargeAlarm.Check("pc", pct);
+    }
+
+    private void OnMinute()
+    {
+        // Laptop charged past the limit while charging (battery care).
+        if (_settings.ChargeLimit > 0 && _onAc == true && PowerStatus.BatteryPercent() is int pct && _chargeAlarm.Check("pc", pct))
+            Show($"\U0001F50B Charged to {pct}% — unplug to save battery health");
+
+        // Bluetooth batteries change slowly and raise no event: look every 15 minutes.
+        if (++_minutes % 15 == 0) _ = CheckDeviceBatteriesAsync();
+    }
+
+    private void OnBluetoothListChanged() => _ = CheckDeviceBatteriesAsync();
+
+    private async Task CheckDeviceBatteriesAsync()
+    {
+        if (_settings.DeviceLowBattery <= 0 || _bluetooth.Connected.Count == 0) return;
+        foreach (var d in await _bluetooth.ReadBatteriesAsync())
+        {
+            if (d.Battery is int level && _deviceAlarm.Check(d.Address, level))
+                Show($"\U0001FAAB {d.Name} battery low · {level}%");
+        }
+    }
+
     private void Show(string text)
     {
         DiagLog.Write("Alert: " + text);
@@ -89,5 +132,7 @@ public sealed class DeviceAlerts : IDisposable
         _window.PowerSourceChanged -= OnPowerSource;
         _window.DriveChanged -= OnDriveChanged;
         _bluetooth.ConnectionChanged -= OnBluetooth;
+        _bluetooth.Changed -= OnBluetoothListChanged;
+        _pill.MinuteTick -= OnMinute;
     }
 }

@@ -217,3 +217,9 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - Device alerts on the pill: charger plugged/unplugged, USB drive connected/removed (WM_DEVICECHANGE), Bluetooth connect/disconnect with battery. Event-driven, no polling.
 - Shelf: drop files on the knob to park references (shelf.json); drag out to move/copy. Launch: pinned apps/files/folders (launch.json); click to open, right-click menu.
 - Charger alerts use RegisterPowerSettingNotification(GUID_ACDC_POWER_SOURCE): SystemEvents.PowerModeChanged (PBT_APMPOWERSTATUSCHANGE) did not fire on this Modern Standby laptop. Alerts go to the panel header while the panel is open, and every hardware event is logged to %APPDATA%\Knob\events.log (trimmed to ~32 KB).
+
+## Keyboard language, privacy dots, battery alerts
+
+- TH/EN + Caps Lock: a WH_KEYBOARD_LL hook reads only the vkCode of key-ups of the switch keys (` ~, Alt/Ctrl+Shift, Win+Space, Caps Lock) and checks the foreground window's layout 150 ms later; no keystrokes are stored. Labels in Core (KeyboardLanguage).
+- Camera/mic dots (green/orange) from CapabilityAccessManager\ConsentStore (LastUsedTimeStop = 0), watched with RegNotifyChangeKeyValue on a sleeping background thread; a message names the app when it starts.
+- Battery: Bluetooth device ≤ 15% (checked on device changes and every 15 min via the pill's minute tick), laptop charged past 80% while charging (only when crossing, not when already full at start/plug-in). ThresholdAlarm in Core; thresholds in settings "Alerts" (0 = off).
