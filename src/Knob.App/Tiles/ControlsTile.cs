@@ -128,7 +128,7 @@ public sealed class ControlsTile : TileBase
             Child = new TextBlock { Text = Ui.IconBrightness, FontFamily = Ui.Res<FontFamily>("IconFont"), FontSize = 15, Foreground = Ui.Fg, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
         };
         var brightnessCard = SliderCard("Brightness", brightPercent, sun, brightSlider, null);
-        var noBrightness = Ui.Text("Not available on this display", 11, Ui.Dim);
+        var noBrightness = Ui.Text("Not available — the monitor needs DDC/CI turned on", 11, Ui.Dim);
 
         var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         left.Children.Add(volumeCard);

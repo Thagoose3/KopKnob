@@ -115,7 +115,7 @@ public abstract class PathListTile : TileBase
 /// </summary>
 public sealed class ShelfTile : PathListTile
 {
-    public ShelfTile() : base(KnobPaths.Shelf, max: 60) { }
+    public ShelfTile(string? file = null) : base(file ?? KnobPaths.Shelf, max: 60) { }
 
     public override string Id => "shelf";
     public override string Title => "Shelf";
@@ -206,7 +206,7 @@ public sealed class LaunchTile : PathListTile
     private readonly Action _closePanel;
     private readonly Action<bool> _keepOpen;
 
-    public LaunchTile(Action closePanel, Action<bool> keepOpen) : base(KnobPaths.Launch, max: 40)
+    public LaunchTile(Action closePanel, Action<bool> keepOpen, string? file = null) : base(file ?? KnobPaths.Launch, max: 40)
     {
         _closePanel = closePanel;
         _keepOpen = keepOpen;
