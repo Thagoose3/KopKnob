@@ -69,6 +69,18 @@ public partial class NotchWindow : Window
         Surface.MouseLeave += (_, _) => { if (!_dragging) _controller.PointerExited(); };
         Surface.MouseLeftButtonUp += (_, _) => _controller.Clicked();
         FloatClose.Click += (_, _) => DockBack(collapse: true);
+        Surface.MouseWheel += (_, e) =>
+        {
+            if (_controller.State != NotchState.Collapsed) return;
+            _controller.CancelHoverOpen();
+            KnobWheel?.Invoke(e.Delta);
+            e.Handled = true;
+        };
+        Surface.AllowDrop = true;
+        Surface.DragEnter += OnFileDragEnter;
+        Surface.DragOver += OnFileDragOver;
+        Surface.DragLeave += OnFileDragLeave;
+        Surface.Drop += OnFileDrop;
 
         PreviewMouseDown += OnPreviewMouseDown;
         PreviewMouseLeftButtonDown += OnPreviewLeftDown;
@@ -293,7 +305,86 @@ public partial class NotchWindow : Window
             // Let WPF apply the DPI change first, then put the knob back in its place.
             Dispatcher.BeginInvoke(DispatcherPriority.Background, Reposition);
         }
+        else if (msg == NativeMethods.WM_DEVICECHANGE)
+        {
+            foreach (var (drive, arrived) in NativeMethods.ReadVolumeChange(wParam, lParam))
+                DriveChanged?.Invoke(drive, arrived);
+        }
         return IntPtr.Zero;
+    }
+
+    // ───────────────────────── wheel / devices / file drops ─────────────────────────
+
+    /// <summary>Mouse wheel turned on the collapsed pill (wheel delta, 120 per notch).</summary>
+    public event Action<int>? KnobWheel;
+    /// <summary>A local drive (USB stick, SD card) appeared (true) or went away (false).</summary>
+    public event Action<char, bool>? DriveChanged;
+    /// <summary>Files are being dragged over the knob (it opens).</summary>
+    public event Action? FilesDragEntered;
+    /// <summary>Files were dropped on the knob.</summary>
+    public event Action<string[]>? FilesDropped;
+
+    private DispatcherTimer? _afterDropTimer;
+
+    private static bool HasFiles(DragEventArgs e) => e.Data.GetDataPresent(DataFormats.FileDrop);
+
+    private void OnFileDragEnter(object sender, DragEventArgs e)
+    {
+        e.Effects = HasFiles(e) ? DragDropEffects.Copy | DragDropEffects.Link : DragDropEffects.None;
+        e.Handled = true;
+        if (!HasFiles(e)) return;
+        _controller.KeepOpen = true; // OLE drag: no MouseEnter/Leave until it ends
+        _controller.RequestOpen();
+        FilesDragEntered?.Invoke();
+    }
+
+    private void OnFileDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = HasFiles(e) ? DragDropEffects.Copy | DragDropEffects.Link : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void OnFileDragLeave(object sender, DragEventArgs e)
+    {
+        // Also raised when moving between child elements: only let go once the cursor is really outside.
+        if (CursorOverSurface()) return;
+        _controller.KeepOpen = false;
+        _controller.PointerExited();
+    }
+
+    private void OnFileDrop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0) FilesDropped?.Invoke(files);
+        _controller.KeepOpen = false;
+        _controller.PointerEntered();
+
+        // WPF raises no MouseEnter for a pointer that arrived during a drag, so it won't raise MouseLeave either:
+        // watch the cursor until it leaves (or until WPF takes over on the next MouseEnter).
+        _afterDropTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) =>
+        {
+            if (Surface.IsMouseOver && Mouse.LeftButton == MouseButtonState.Released) { _afterDropTimer!.Stop(); return; }
+            if (CursorOverSurface()) return;
+            _afterDropTimer!.Stop();
+            _controller.PointerExited();
+        }, Dispatcher);
+        _afterDropTimer.Start();
+    }
+
+    private bool CursorOverSurface()
+    {
+        if (_hwnd == IntPtr.Zero || !NativeMethods.GetCursorPos(out var c) || !NativeMethods.GetWindowRect(_hwnd, out var r)) return false;
+        var p = new Point((c.X - r.Left) / _scale, (c.Y - r.Top) / _scale);
+        var origin = Surface.TranslatePoint(new Point(0, 0), (UIElement)Content);
+        return new Rect(origin, new Size(Surface.ActualWidth, Surface.ActualHeight)).Contains(p);
+    }
+
+    /// <summary>Weather next to the clock on the pill ("☀ 31°"); null hides it.</summary>
+    public void SetPillWeather(string? text)
+    {
+        WeatherText.Text = text ?? "";
+        WeatherText.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdatePillLength();
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
@@ -487,6 +578,7 @@ public partial class NotchWindow : Window
         MessageText.Foreground = pillText;
         TimerText.Foreground = Ui.Res<Brush>("ScrollTrimBrush");
         BatteryText.Foreground = Ui.Res<Brush>("ScrollPillSubtleBrush");
+        WeatherText.Foreground = Ui.Res<Brush>("ScrollPillSubtleBrush");
         CoffeeDot.Fill = Ui.Res<Brush>("ScrollTrimBrush");
 
         ApplyEdgeLook();

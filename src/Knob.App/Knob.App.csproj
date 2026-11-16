@@ -30,6 +30,7 @@
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.8.1" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
   <!-- App icon, also embedded so the tray can load it at the right small size -->

@@ -35,6 +35,9 @@ public partial class App : Application
     private TextCaptureTool? _textCapture;
     private HotkeyManager? _hotkeys;
     private FullscreenWatcher? _fullscreen;
+    private BluetoothMonitor? _bluetooth;
+    private WeatherService? _weather;
+    private DeviceAlerts? _alerts;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -162,10 +165,22 @@ public partial class App : Application
         var disk = new DiskTile();
         var monitor = new MonitorTile(clock, Dispatcher);
 
+        _bluetooth = new BluetoothMonitor(Dispatcher);
+        _bluetooth.Start();
+        var controls = new ControlsTile(_bluetooth, Dispatcher);
+        _weather = new WeatherService(_settings.Weather);
+        var weather = new WeatherTile(_weather, SaveSettings);
+        var shelf = new ShelfTile();
+        var launch = new LaunchTile(() => _controller!.RequestClose(), keep => _controller!.KeepOpen = keep);
+
         PageDef[] pages =
         [
             new("home", "Home", Ui.IconHome, () => HomePage.Create(clockTile, _coffee, disk, _settings.Hotkeys.TextCapture, () => _textCapture!.Start()), [clockTile, _coffee, disk]),
             new("music", "Music", Ui.IconMusic, media.CreatePageView, [media]),
+            new("controls", "Controls", Ui.IconControls, () => controls.CreateView(TileSize.L), [controls]),
+            new("weather", "Weather", Ui.IconWeather, () => weather.CreateView(TileSize.L), [weather]),
+            new("shelf", "Shelf", Ui.IconShelf, () => shelf.CreateView(TileSize.L), [shelf]),
+            new("launch", "Launch", Ui.IconLaunch, () => launch.CreateView(TileSize.L), [launch]),
             new("timer", "Timer", Ui.IconTimer, () => Pages.Centered(timer.CreateView(TileSize.L), 1.35), [timer]),
             new("clipboard", "Clipboard", Ui.IconClipboard, () => Pages.Padded(clipboard.CreateView(TileSize.L)), [clipboard]),
             new("notes", "Notes", Ui.IconNotes, () => Pages.Padded(_notes.CreateView(TileSize.L)), [_notes]),
@@ -181,7 +196,44 @@ public partial class App : Application
 
         _controller!.PanelOpened += (_, _) => _pages.OnPanelOpened();
         _controller.PanelClosed += (_, _) => _pages.OnPanelClosed();
+
+        // The knob is a volume knob: mouse wheel on the collapsed pill, or on the header row when open.
+        _window.KnobWheel += d =>
+        {
+            if (controls.Nudge(d) is int p) _window.ShowPillMessage(VolumeText(p), TimeSpan.FromMilliseconds(1200));
+        };
+        _pages.HeaderWheel += d =>
+        {
+            if (controls.Nudge(d) is int p) _pages.Flash(VolumeText(p));
+        };
+
+        // Files dragged onto the knob: park them on the shelf (or pin them when the Launch page is showing).
+        _window.FilesDragEntered += () =>
+        {
+            if (_pages.CurrentId is not ("launch" or "shelf")) _pages.Show("shelf");
+        };
+        _window.FilesDropped += files =>
+        {
+            if (_pages.CurrentId == "launch") launch.Add(files);
+            else
+            {
+                shelf.Add(files);
+                _pages.Show("shelf");
+            }
+        };
+
+        // Weather on the pill; refreshed (at most every 30 min) on the pill's minute tick.
+        _weather.Changed += UpdatePillWeather;
+        _pillStatus!.MinuteTick += () => _ = _weather.RefreshAsync();
+        _ = _weather.RefreshAsync();
+
+        _alerts = new DeviceAlerts(_window, _bluetooth);
     }
+
+    private static string VolumeText(int percent) => percent == 0 ? "\U0001F507 Muted" : $"\U0001F50A {percent}%";
+
+    private void UpdatePillWeather() =>
+        _window?.SetPillWeather(_settings.Weather.ShowOnPill ? WeatherTile.PillText(_weather?.Report) : null);
 
     private void OpenCalculator() => OpenPage("calc");
 
@@ -280,6 +332,8 @@ public partial class App : Application
         Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         Microsoft.Win32.SystemEvents.SessionSwitch -= OnSessionSwitch;
         _fullscreen?.Dispose();
+        _alerts?.Dispose();
+        _bluetooth?.Dispose();
         _hotkeys?.Dispose();
         _notes?.Save();
         _coffee?.Set(false);

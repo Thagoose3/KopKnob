@@ -85,6 +85,9 @@ public sealed class NotchController
         if (IsExpanded && !_holdOpen && !_keepOpen) { _closeTimer.Stop(); _closeTimer.Start(); }
     }
 
+    /// <summary>The wheel turned on the collapsed pill: it's being used as a volume knob, so don't open on this hover.</summary>
+    public void CancelHoverOpen() => _openTimer.Stop();
+
     public void Clicked()
     {
         _openTimer.Stop();

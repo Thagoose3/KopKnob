@@ -11,6 +11,27 @@ internal static class NativeMethods
 
     public const int WM_DISPLAYCHANGE = 0x007E;
     public const int WM_DPICHANGED = 0x02E0;
+    public const int WM_DEVICECHANGE = 0x0219;
+    private const int DBT_DEVICEARRIVAL = 0x8000;
+    private const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
+    private const int DBT_DEVTYP_VOLUME = 2;
+    private const short DBTF_NET = 2;
+
+    /// <summary>
+    /// Decode a WM_DEVICECHANGE broadcast for local volumes (sent to every top-level window): drive letters that
+    /// arrived (true) or were removed (false). Network drives are ignored.
+    /// </summary>
+    public static IEnumerable<(char Drive, bool Arrived)> ReadVolumeChange(IntPtr wParam, IntPtr lParam)
+    {
+        var evt = wParam.ToInt64();
+        if ((evt != DBT_DEVICEARRIVAL && evt != DBT_DEVICEREMOVECOMPLETE) || lParam == IntPtr.Zero) yield break;
+        if (Marshal.ReadInt32(lParam, 4) != DBT_DEVTYP_VOLUME) yield break; // DEV_BROADCAST_HDR.dbch_devicetype
+        var mask = Marshal.ReadInt32(lParam, 12);   // DEV_BROADCAST_VOLUME.dbcv_unitmask
+        var flags = Marshal.ReadInt16(lParam, 16);  // dbcv_flags
+        if ((flags & DBTF_NET) != 0) yield break;
+        for (var i = 0; i < 26; i++)
+            if ((mask & (1 << i)) != 0) yield return ((char)('A' + i), evt == DBT_DEVICEARRIVAL);
+    }
 
     public const uint SWP_NOACTIVATE = 0x0010;
     public const uint SWP_NOSIZE = 0x0001;

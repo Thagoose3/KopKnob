@@ -20,6 +20,7 @@ public sealed class AppSettings : IJsonNormalizable
     public int ClipboardMaxItems { get; set; } = 50;
     public DockSettings Dock { get; set; } = new();
     public TabSettings Tabs { get; set; } = new();
+    public WeatherSettings Weather { get; set; } = new();
 
     public void Normalize()
     {
@@ -30,9 +31,32 @@ public sealed class AppSettings : IJsonNormalizable
         Hotkeys.Normalize();
         Dock ??= new DockSettings();
         Dock.Normalize();
+        Weather ??= new WeatherSettings();
+        Weather.Normalize();
         if (HoverOpenDelayMs < 0) HoverOpenDelayMs = 120;
         if (CloseDelayMs < 0) CloseDelayMs = 350;
         if (ClipboardMaxItems <= 0) ClipboardMaxItems = 50;
+    }
+}
+
+/// <summary>The place the weather page shows (chosen by searching a city name). Null until the user picks one.</summary>
+public sealed class WeatherSettings
+{
+    public string? City { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    /// <summary>Temperature next to the clock on the pill.</summary>
+    public bool ShowOnPill { get; set; } = true;
+
+    public bool HasPlace => !string.IsNullOrWhiteSpace(City) && Latitude is not null && Longitude is not null;
+
+    public void Normalize()
+    {
+        if (Latitude is not (>= -90 and <= 90) || Longitude is not (>= -180 and <= 180) || string.IsNullOrWhiteSpace(City))
+        {
+            City = null;
+            Latitude = Longitude = null;
+        }
     }
 }
 

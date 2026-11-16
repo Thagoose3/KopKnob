@@ -30,6 +30,20 @@ internal static class Ui
     public const string IconSystem = "";
     public const string IconCapture = "";
 
+    public const string IconControls = "";
+    public const string IconWeather = "";
+    public const string IconShelf = "";
+    public const string IconLaunch = "";
+    public const string IconVolume = "";
+    public const string IconMute = "";
+    public const string IconBrightness = "";
+    public const string IconBluetooth = "";
+    public const string IconSearch = "";
+    public const string IconEdit = "";
+    public const string IconRefresh = "";
+    public const string IconFolderOpen = "";
+    public const string IconDelete = "";
+
     public static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
     public static Brush Accent => Res<Brush>("AccentBrush");

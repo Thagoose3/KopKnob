@@ -86,6 +86,52 @@ internal static class Pages
         return (card, badge, titleText, subtitle);
     }
 
+    /// <summary>
+    /// Theme-coloured slider (0–1): drag or click anywhere on it, or use the mouse wheel. <paramref name="changed"/>
+    /// runs on every change made by the user; the returned setter updates it from code without raising it.
+    /// </summary>
+    public static (FrameworkElement Slider, Action<double> Set) Slider(Action<double> changed, double height = 8)
+    {
+        var value = 0.0;
+        var (bar, setBar) = Bar(Ui.Accent, height);
+        bar.Margin = new Thickness(0);
+        var knob = new System.Windows.Shapes.Ellipse
+        {
+            Width = height + 8,
+            Height = height + 8,
+            Fill = Ui.Fg,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+        };
+        var root = new Grid { Height = height + 12, Background = Brushes.Transparent, Cursor = Cursors.Hand };
+        root.Children.Add(bar);
+        root.Children.Add(knob);
+
+        void Show()
+        {
+            setBar(value);
+            var w = Math.Max(0, root.ActualWidth - knob.Width);
+            knob.Margin = new Thickness(w * value, 0, 0, 0);
+        }
+        void SetFromUser(double v)
+        {
+            v = Math.Clamp(v, 0, 1);
+            if (Math.Abs(v - value) < 0.0005) return;
+            value = v;
+            Show();
+            changed(v);
+        }
+        double At(MouseEventArgs e) => root.ActualWidth <= 0 ? value : e.GetPosition(root).X / root.ActualWidth;
+
+        root.SizeChanged += (_, _) => Show();
+        root.MouseLeftButtonDown += (_, e) => { root.CaptureMouse(); SetFromUser(At(e)); e.Handled = true; };
+        root.MouseMove += (_, e) => { if (root.IsMouseCaptured) SetFromUser(At(e)); };
+        root.MouseLeftButtonUp += (_, e) => { root.ReleaseMouseCapture(); e.Handled = true; };
+        root.MouseWheel += (_, e) => { SetFromUser(value + e.Delta / 120.0 * 0.02); e.Handled = true; };
+        return (root, v => { value = Math.Clamp(v, 0, 1); Show(); });
+    }
+
     /// <summary>Thin rounded progress bar; returns the bar and a setter for 0–1.</summary>
     public static (Grid Bar, Action<double> Set) Bar(Brush fill, double height = 4)
     {

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Knob.App.Tiles;
 using Knob.Core;
 using Knob.Core.Shell;
@@ -58,6 +59,13 @@ public sealed class PageHost : DockPanel
         header.Children.Add(more);
         header.Children.Add(_time);
         header.Children.Add(_date);
+        header.Background = Brushes.Transparent; // hit-testable, for the wheel
+        header.MouseWheel += (_, e) =>
+        {
+            HeaderWheel?.Invoke(e.Delta);
+            e.Handled = true;
+        };
+        header.ToolTip = "Scroll here to change the volume";
         DockPanel.SetDock(header, Dock.Top);
         Children.Add(header);
 
@@ -74,6 +82,26 @@ public sealed class PageHost : DockPanel
     }
 
     public string? CurrentId => _current?.Id;
+
+    /// <summary>Mouse wheel over the header row (date · time): used as a volume knob.</summary>
+    public event Action<int>? HeaderWheel;
+
+    private DispatcherTimer? _flashTimer;
+
+    /// <summary>Show a short status in place of the date for a moment ("🔊 46%").</summary>
+    public void Flash(string text)
+    {
+        _date.Text = text;
+        _date.Foreground = Ui.Fg;
+        _flashTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(1200), DispatcherPriority.Normal, (_, _) =>
+        {
+            _flashTimer!.Stop();
+            _date.Foreground = Ui.Subtle;
+            RefreshHeader();
+        }, Dispatcher);
+        _flashTimer.Stop();
+        _flashTimer.Start();
+    }
 
     /// <summary>Show a page (also one hidden from the tab bar, e.g. opened by a hotkey).</summary>
     public void Show(string id)

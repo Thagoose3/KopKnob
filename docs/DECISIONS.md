@@ -209,3 +209,10 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - No real blur. A layered transparent window only gets acrylic through the undocumented SetWindowCompositionAttribute, which blurs the whole 720 px window rectangle; we would need a window region following the pill↔panel animation every frame (jagged corners, possible stutter). Fake frosted glass costs nothing at idle; real blur can be layered on later.
 - The drag snap preview still switches the outline to the accent colour, then back to the glass edge.
 - Scroll theme: the Monkey King figure was removed from the paper (user found it unattractive); the ornament is now just the staff, a gourd hanging from it, and golden clouds.
+
+## Controls, Weather, Shelf, Launch, device alerts
+
+- Controls page: master volume (Core Audio COM), laptop brightness (WMI; external monitors would need DDC/CI, not done), connected Bluetooth devices with battery (DEVPKEY_Bluetooth_Battery on the BTH* device node, matched by address to the paired endpoint). The mouse wheel on the collapsed pill (cancels hover-open) or the panel header changes the volume.
+- Weather: Open-Meteo (no key). The user searches a city; only the name (search) and coordinates rounded to 0.01° are sent. Fetched at most every 30 min on the pill's minute tick; temperature shown on the pill.
+- Device alerts on the pill: charger plugged/unplugged, USB drive connected/removed (WM_DEVICECHANGE), Bluetooth connect/disconnect with battery. Event-driven, no polling.
+- Shelf: drop files on the knob to park references (shelf.json); drag out to move/copy. Launch: pinned apps/files/folders (launch.json); click to open, right-click menu.
