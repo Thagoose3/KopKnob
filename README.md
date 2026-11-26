@@ -62,7 +62,7 @@ Home (big clock, Coffee keep-awake, disk space, Capture text) · Music (now play
 
 | Keys | Tool |
 |---|---|
-| `Ctrl+Alt+Space` | Quick search — pages, pinned apps, actions, clipboard text; type `12*7` to calculate |
+| `Ctrl+Alt+F` | Quick search — pages, pinned apps, actions, clipboard text; type `12*7` to calculate |
 | `Ctrl+Alt+S` | Screenshot — drag a box (Enter = whole screen); saved to Pictures\Knob Screenshots, copied, and put on the Shelf |
 | `Ctrl+Alt+C` | Colour picker — magnifier over the screen; click copies `#RRGGBB` |
 | `Ctrl+Alt+T` | Text capture — drag a box on screen; Thai + English text goes to the clipboard |

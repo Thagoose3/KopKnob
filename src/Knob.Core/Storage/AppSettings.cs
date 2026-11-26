@@ -104,7 +104,7 @@ public sealed class HotkeySettings
     public string TextCapture { get; set; } = "Ctrl+Alt+T";
     public string Screenshot { get; set; } = "Ctrl+Alt+S";
     public string ColorPicker { get; set; } = "Ctrl+Alt+C";
-    public string Search { get; set; } = "Ctrl+Alt+Space";
+    public string Search { get; set; } = "Ctrl+Alt+F";
 
     internal void Normalize()
     {
@@ -113,6 +113,6 @@ public sealed class HotkeySettings
         TextCapture ??= "Ctrl+Alt+T";
         Screenshot ??= "Ctrl+Alt+S";
         ColorPicker ??= "Ctrl+Alt+C";
-        Search ??= "Ctrl+Alt+Space";
+        Search ??= "Ctrl+Alt+F";
     }
 }
