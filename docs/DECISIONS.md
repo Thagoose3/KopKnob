@@ -236,3 +236,10 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - install-files.txt lists every file written; uninstall deletes exactly those (and files dropped by an update), never anything else in the folder. User data in %APPDATA%\Knob is kept unless the user ticks "also delete my data".
 - The self-contained exe is published without single-file compression: compressed bundles are unpacked into private memory on every start (measured 111 MB private vs 33 MB uncompressed). The installer's zip compresses anyway (installer ≈ 75 MB; ≈ 190 MB on disk).
 - Not code-signed: SmartScreen warns on first run.
+
+## Convert page (1.1.0)
+
+- Convert tab: drop files (or click to browse) and convert next to the originals without overwriting — images via SkiaSharp (PNG/JPG/WEBP/BMP/multi-size ICO, single or merged PDF; WIC fallback for TIFF/HEIC), audio/video via Windows MediaTranscoder (MP3/WAV/M4A/MP4), JSON ↔ CSV/TSV, Markdown → HTML/TXT. Results can be dragged straight out. Hovering a dragged file over a tab that accepts files switches to it.
+- Text inputs: BOM honoured; otherwise strict UTF-8, falling back to Windows-874 — Excel's plain "CSV (Comma delimited)" on Thai Windows writes 874, which read as UTF-8 turned Thai into "�".
+- Markdown inline placeholders are restored newest-first so inline code inside a link label renders.
+- SkiaSharp's native library loads only when converting (no idle cost); adds ~10 MB to the installer.

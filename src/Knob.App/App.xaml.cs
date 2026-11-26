@@ -180,6 +180,7 @@ public partial class App : Application, ISettingsHost
         _weather = new WeatherService(_settings.Weather);
         var weather = new WeatherTile(_weather, SaveSettings);
         var shelf = new ShelfTile();
+        var convert = new ConvertTile(keep => _controller!.KeepOpen = keep, text => Say(text, TimeSpan.FromSeconds(2.5)), Dispatcher);
         var launch = new LaunchTile(() => _controller!.RequestClose(), keep => _controller!.KeepOpen = keep);
 
         PageDef[] pages =
@@ -188,8 +189,9 @@ public partial class App : Application, ISettingsHost
             new("music", "Music", Ui.IconMusic, media.CreatePageView, [media]),
             new("controls", "Controls", Ui.IconControls, () => controls.CreateView(TileSize.L), [controls]),
             new("weather", "Weather", Ui.IconWeather, () => weather.CreateView(TileSize.L), [weather]),
-            new("shelf", "Shelf", Ui.IconShelf, () => shelf.CreateView(TileSize.L), [shelf]),
-            new("launch", "Launch", Ui.IconLaunch, () => launch.CreateView(TileSize.L), [launch]),
+            new("shelf", "Shelf", Ui.IconShelf, () => shelf.CreateView(TileSize.L), [shelf], AcceptsFileDrop: true),
+            new("convert", "Convert", Ui.IconConvert, () => convert.CreateView(TileSize.L), [convert], AcceptsFileDrop: true),
+            new("launch", "Launch", Ui.IconLaunch, () => launch.CreateView(TileSize.L), [launch], AcceptsFileDrop: true),
             new("timer", "Timer", Ui.IconTimer, () => Pages.Centered(timer.CreateView(TileSize.L), 1.35), [timer]),
             new("clipboard", "Clipboard", Ui.IconClipboard, () => Pages.Padded(clipboard.CreateView(TileSize.L)), [clipboard]),
             new("notes", "Notes", Ui.IconNotes, () => Pages.Padded(_notes.CreateView(TileSize.L)), [_notes]),
@@ -216,14 +218,15 @@ public partial class App : Application, ISettingsHost
             if (controls.Nudge(d) is int p) _pages.Flash(VolumeText(p));
         };
 
-        // Files dragged onto the knob: park them on the shelf (or pin them when the Launch page is showing).
+        // Files dragged onto the knob: park them on the shelf, or route them to Convert / Launch when active.
         _window.FilesDragEntered += () =>
         {
-            if (_pages.CurrentId is not ("launch" or "shelf")) _pages.Show("shelf");
+            if (_pages.CurrentId is not ("launch" or "shelf" or "convert")) _pages.Show("shelf");
         };
         _window.FilesDropped += files =>
         {
             if (_pages.CurrentId == "launch") launch.Add(files);
+            else if (_pages.CurrentId == "convert") convert.ReceiveFiles(files);
             else
             {
                 shelf.Add(files);

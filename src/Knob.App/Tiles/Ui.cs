@@ -33,6 +33,7 @@ internal static class Ui
     public const string IconControls = "";
     public const string IconWeather = "";
     public const string IconShelf = "";
+    public const string IconConvert = "\uE8AB";
     public const string IconLaunch = "";
     public const string IconVolume = "";
     public const string IconMute = "";

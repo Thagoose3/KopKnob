@@ -8,7 +8,7 @@ namespace Knob.Core.Shell;
 public sealed class TabSettings
 {
     public static readonly string[] DefaultOrder =
-        ["home", "music", "controls", "weather", "timer", "clipboard", "notes", "todo", "shelf", "launch", "calendar", "calc", "qr", "system"];
+        ["home", "music", "controls", "weather", "timer", "clipboard", "notes", "todo", "shelf", "convert", "launch", "calendar", "calc", "qr", "system"];
 
     public List<string> Order { get; set; } = [.. DefaultOrder];
     public List<string> Hidden { get; set; } = [];

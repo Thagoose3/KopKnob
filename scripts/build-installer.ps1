@@ -1,4 +1,4 @@
-# Builds artifacts\KnobSetup-<version>.exe: one file that installs Knob on any Windows 10/11 PC.
+﻿# Builds artifacts\KnobSetup-<version>.exe: one file that installs Knob on any Windows 10/11 PC.
 #   1. publish Knob self-contained (no .NET needed on the target PC), x64 only
 #   2. build the uninstaller (.NET Framework 4.8, built into Windows) and add it as "Uninstall Knob.exe"
 #   3. zip that folder and embed it in the installer (also .NET Framework 4.8)
@@ -25,6 +25,7 @@ dotnet publish src/Knob.App -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o $app --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw 'Publishing Knob failed' }
 Remove-Item (Join-Path $app 'x86') -Recurse -Force -ErrorAction SilentlyContinue   # 64-bit only
+Get-ChildItem $app -Filter *.pdb -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force   # strip native debug symbols
 
 Write-Host '2/3 Building the uninstaller...'
 dotnet build src/Knob.Uninstall -c Release --nologo -v q

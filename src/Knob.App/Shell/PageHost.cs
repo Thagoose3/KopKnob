@@ -16,7 +16,8 @@ public sealed record PageDef(
     string Glyph,
     Func<FrameworkElement> Create,
     IReadOnlyList<ITile> Tiles,
-    bool Recreate = false);
+    bool Recreate = false,
+    bool AcceptsFileDrop = false);
 
 /// <summary>
 /// The open panel: a header (date · ··· · time), one page at a time, and a bottom tab bar.
@@ -187,9 +188,15 @@ public sealed class PageHost : DockPanel
         _time.Text = now.ToString("HH:mm", English);
     }
 
+    private DispatcherTimer? _dragSwitchTimer;
+    private string? _dragSwitchTarget;
+
     private void RebuildNav()
     {
+        _dragSwitchTimer?.Stop();
+        _dragSwitchTarget = null;
         _nav.Children.Clear();
+        var compact = _tabs.Visible.Count > 14;
         foreach (var id in _tabs.Visible)
         {
             if (!_pages.TryGetValue(id, out var page)) continue;
@@ -218,18 +225,56 @@ public sealed class PageHost : DockPanel
                 });
             }
 
+            var restingBg = active ? Ui.Control : Brushes.Transparent;
             var button = new Button
             {
                 Content = content,
                 Height = 26,
-                MinWidth = 32,
-                Padding = new Thickness(active ? 10 : 8, 0, active ? 12 : 8, 0),
-                Margin = new Thickness(2, 0, 2, 0),
-                Background = active ? Ui.Control : Brushes.Transparent,
+                MinWidth = compact ? 30 : 32,
+                Padding = new Thickness(active ? 10 : (compact ? 7 : 8), 0, active ? 12 : (compact ? 7 : 8), 0),
+                Margin = new Thickness(compact ? 1.5 : 2, 0, compact ? 1.5 : 2, 0),
+                Background = restingBg,
                 ToolTip = page.Title,
             };
             var target = id;
             button.Click += (_, _) => Show(target);
+
+            if (page.AcceptsFileDrop)
+            {
+                button.AllowDrop = true;
+                button.PreviewDragOver += (_, e) =>
+                {
+                    if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                    if (!_customizing && _current?.Id == target) return;
+                    button.Background = Ui.Control;
+                    if (_dragSwitchTarget == target) return;
+                    _dragSwitchTarget = target;
+                    _dragSwitchTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(160), DispatcherPriority.Normal, (_, _) =>
+                    {
+                        _dragSwitchTimer!.Stop();
+                        var next = _dragSwitchTarget;
+                        _dragSwitchTarget = null;
+                        if (next is not null) Show(next);
+                    }, Dispatcher);
+                    _dragSwitchTimer.Stop();
+                    _dragSwitchTimer.Start();
+                };
+                button.PreviewDragLeave += (_, _) =>
+                {
+                    button.Background = restingBg;
+                    if (_dragSwitchTarget != target) return;
+                    _dragSwitchTimer?.Stop();
+                    _dragSwitchTarget = null;
+                };
+                button.PreviewDrop += (_, e) =>
+                {
+                    if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                    _dragSwitchTimer?.Stop();
+                    _dragSwitchTarget = null;
+                    if (_customizing || _current?.Id != target) Show(target);
+                };
+            }
+
             _nav.Children.Add(button);
         }
     }
