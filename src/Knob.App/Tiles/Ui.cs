@@ -31,6 +31,7 @@ internal static class Ui
     public const string IconCapture = "";
 
     public const string IconControls = "";
+    public const string IconTools = "";
     public const string IconWeather = "";
     public const string IconShelf = "";
     public const string IconConvert = "\uE8AB";

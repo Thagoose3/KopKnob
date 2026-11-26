@@ -18,7 +18,9 @@ public static class SearchView
     private const int MaxResults = 6;
 
     /// <param name="query">Results for the text typed (empty text → suggestions).</param>
-    public static FrameworkElement Create(Func<string, IReadOnlyList<PaletteItem>> query)
+    /// <param name="whenEmpty">Shown instead of the suggestions while nothing is typed (the Tools page).</param>
+    /// <param name="autoFocus">Put the cursor in the box when shown (opened by the hotkey); a tab waits for a click.</param>
+    public static FrameworkElement Create(Func<string, IReadOnlyList<PaletteItem>> query, FrameworkElement? whenEmpty = null, bool autoFocus = true)
     {
         var box = new TextBox { FontSize = 15, Padding = new Thickness(8, 5, 8, 5), VerticalContentAlignment = VerticalAlignment.Center };
         var icon = new TextBlock { Text = Ui.IconSearch, FontFamily = Ui.Res<FontFamily>("IconFont"), FontSize = 15, Foreground = Ui.Subtle, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 10, 0) };
@@ -73,11 +75,15 @@ public static class SearchView
             return b;
         }
 
+        var body = new Border();
         void Refresh()
         {
-            results = query(box.Text).Take(MaxResults).ToList();
+            var empty = box.Text.Trim().Length == 0 && whenEmpty is not null;
+            results = empty ? [] : query(box.Text).Take(MaxResults).ToList();
             selected = 0;
             Render();
+            body.Child = empty ? whenEmpty : list;
+            hint.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
         }
 
         box.TextChanged += (_, _) => Refresh();
@@ -107,10 +113,11 @@ public static class SearchView
         DockPanel.SetDock(hint, Dock.Bottom);
         root.Children.Add(top);
         root.Children.Add(hint);
-        root.Children.Add(list);
+        root.Children.Add(body);
         Pages.Smooth(root);
 
-        root.Loaded += (_, _) => root.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => Keyboard.Focus(box));
+        if (autoFocus)
+            root.Loaded += (_, _) => root.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => Keyboard.Focus(box));
         Refresh();
         return root;
     }

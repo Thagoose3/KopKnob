@@ -25,6 +25,7 @@ public sealed class AppSettings : IJsonNormalizable
     public WeatherSettings Weather { get; set; } = new();
     public AlertSettings Alerts { get; set; } = new();
     public UpdateSettings Updates { get; set; } = new();
+    public ToolSettings Tools { get; set; } = new();
 
     public void Normalize()
     {
@@ -40,10 +41,40 @@ public sealed class AppSettings : IJsonNormalizable
         Alerts ??= new AlertSettings();
         Alerts.Normalize();
         Updates ??= new UpdateSettings();
+        Tools ??= new ToolSettings();
+        Tools.Normalize();
         if (HoverOpenDelayMs < 0) HoverOpenDelayMs = 120;
         if (CloseDelayMs < 0) CloseDelayMs = 350;
         if (ClipboardMaxItems <= 0) ClipboardMaxItems = 50;
     }
+}
+
+/// <summary>The Tools page: colours picked from the screen, newest first.</summary>
+public sealed class ToolSettings
+{
+    public const int MaxColors = 8;
+
+    public List<string> RecentColors { get; set; } = [];
+
+    /// <summary>Remember a picked "#RRGGBB" (upper-case; a repeat moves to the front).</summary>
+    public void AddColor(string hex)
+    {
+        if (!IsHex(hex)) return;
+        var c = hex.ToUpperInvariant();
+        RecentColors.RemoveAll(x => string.Equals(x, c, StringComparison.OrdinalIgnoreCase));
+        RecentColors.Insert(0, c);
+        if (RecentColors.Count > MaxColors) RecentColors.RemoveRange(MaxColors, RecentColors.Count - MaxColors);
+    }
+
+    public void Normalize()
+    {
+        var old = RecentColors ?? [];
+        RecentColors = [];
+        foreach (var c in Enumerable.Reverse(old)) AddColor(c ?? ""); // oldest first, so the order is kept
+    }
+
+    private static bool IsHex(string s) =>
+        s.Length == 7 && s[0] == '#' && s.Skip(1).All(char.IsAsciiHexDigit);
 }
 
 /// <summary>Update checks against the project's GitHub releases.</summary>

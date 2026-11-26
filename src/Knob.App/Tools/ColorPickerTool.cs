@@ -8,6 +8,9 @@ public sealed class ColorPickerTool(NotchWindow window, NotchController controll
 {
     private bool _busy;
 
+    /// <summary>Raised with "#RRGGBB" after a colour was picked and copied.</summary>
+    public event Action<string>? Picked;
+
     public async void Start()
     {
         if (_busy) return;
@@ -26,6 +29,7 @@ public sealed class ColorPickerTool(NotchWindow window, NotchController controll
 
             var ok = await ClipboardUtil.TrySetTextAsync(hex);
             window.ShowPillMessage(ok ? $"\U0001F3A8 {hex} copied" : "Clipboard busy", TimeSpan.FromSeconds(2.5));
+            Picked?.Invoke(hex);
         }
         finally
         {

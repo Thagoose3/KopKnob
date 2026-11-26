@@ -37,6 +37,7 @@ public partial class App : Application, ISettingsHost
     private ColorPickerTool? _colorPicker;
     private Func<string, IReadOnlyList<PaletteItem>>? _palette;
     private UpdateService? _updates;
+    private event Action? _recentColorsChanged;
     private HotkeyManager? _hotkeys;
     private FullscreenWatcher? _fullscreen;
     private BluetoothMonitor? _bluetooth;
@@ -190,6 +191,18 @@ public partial class App : Application, ISettingsHost
         PageDef[] pages =
         [
             new("home", "Home", Ui.IconHome, () => HomePage.Create(clockTile, _coffee, disk, _settings.Hotkeys.TextCapture, () => _textCapture!.Start()), [clockTile, _coffee, disk]),
+            // Tools: built lazily, so everything it uses is looked up when used (it can be the first page shown).
+            new("tools", "Tools", Ui.IconTools, () => ToolsPage.Create(
+                q => _palette?.Invoke(q) ?? [],
+                [
+                    new("", "Screenshot", _settings.Hotkeys.Screenshot, () => _screenshot?.Start()),
+                    new("", "Pick a colour", _settings.Hotkeys.ColorPicker, () => _colorPicker?.Start()),
+                    new(Ui.IconCapture, "Capture text", _settings.Hotkeys.TextCapture, () => _textCapture?.Start()),
+                ],
+                _settings.Tools,
+                hex => { _ = ClipboardUtil.TrySetTextAsync(hex); Say($"\U0001F3A8 {hex} copied", TimeSpan.FromSeconds(1.5)); },
+                h => _recentColorsChanged += h,
+                h => _recentColorsChanged -= h), []),
             new("music", "Music", Ui.IconMusic, media.CreatePageView, [media]),
             new("controls", "Controls", Ui.IconControls, () => controls.CreateView(TileSize.L), [controls]),
             new("weather", "Weather", Ui.IconWeather, () => weather.CreateView(TileSize.L), [weather]),
@@ -279,6 +292,12 @@ public partial class App : Application, ISettingsHost
 
         _screenshot = new ScreenshotTool(_window, _controller, shelf);
         _colorPicker = new ColorPickerTool(_window, _controller);
+        _colorPicker.Picked += hex =>
+        {
+            _settings.Tools.AddColor(hex);
+            SaveSettings();
+            _recentColorsChanged?.Invoke();
+        };
         _palette = BuildPalette(pages, launch);
 
         // Updates from GitHub releases: first look a minute after start, then about once a day (minute tick).

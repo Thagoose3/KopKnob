@@ -1,7 +1,7 @@
 <Project>
   <!-- One version for the app, the installer and the uninstaller (shown in Settings → About and in Windows "Apps"). -->
   <PropertyGroup>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Product>Knob</Product>
   </PropertyGroup>
 </Project>
