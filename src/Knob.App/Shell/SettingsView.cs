@@ -26,6 +26,10 @@ public interface ISettingsHost
     /// <summary>Register the hotkeys from settings again; returns the ones that couldn't be registered.</summary>
     IReadOnlyList<string> ApplyHotkeys();
     FrameworkElement TabsEditor();
+    /// <summary>Update checks (Settings → About).</summary>
+    Knob.App.Platform.UpdateService Updates { get; }
+    /// <summary>Download and run the available update (Knob restarts).</summary>
+    void InstallUpdate();
     void OpenPage(string id);
     void Close();
 }
@@ -80,7 +84,7 @@ public static class SettingsView
                 "alerts" => Alerts(host),
                 "hotkeys" => Hotkeys(host),
                 "tabs" => Tabs(host),
-                "about" => About(),
+                "about" => About(host),
                 _ => General(host),
             };
         }
@@ -200,8 +204,8 @@ public static class SettingsView
             {
                 Text = get(),
                 IsReadOnly = true,
-                Width = 150,
-                FontSize = 12.5,
+                Width = 128,
+                FontSize = 12,
                 TextAlignment = TextAlignment.Center,
                 Padding = new Thickness(4, 3, 4, 3),
                 Cursor = Cursors.Hand,
@@ -242,11 +246,24 @@ public static class SettingsView
             return box;
         }
 
+        // Two columns so all six fit without scrolling.
+        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+        void Add(string label, FrameworkElement recorder)
+        {
+            var cell = Row(label, null, recorder);
+            cell.Margin = new Thickness(0, 0, 18, 8);
+            grid.Children.Add(cell);
+        }
+        Add("Quick search", Recorder(() => h.Search, v => h.Search = v));
+        Add("Screenshot to Shelf", Recorder(() => h.Screenshot, v => h.Screenshot = v));
+        Add("Colour picker", Recorder(() => h.ColorPicker, v => h.ColorPicker = v));
+        Add("Capture text", Recorder(() => h.TextCapture, v => h.TextCapture = v));
+        Add("Calculator", Recorder(() => h.Calculator, v => h.Calculator = v));
+        Add("QR code", Recorder(() => h.Qr, v => h.Qr = v));
+
         var p = Panel();
         p.Children.Add(status);
-        p.Children.Add(Row("Calculator", null, Recorder(() => h.Calculator, v => h.Calculator = v)));
-        p.Children.Add(Row("QR code", null, Recorder(() => h.Qr, v => h.Qr = v)));
-        p.Children.Add(Row("Capture text", null, Recorder(() => h.TextCapture, v => h.TextCapture = v)));
+        p.Children.Add(grid);
         return p;
     }
 
@@ -261,17 +278,56 @@ public static class SettingsView
         return p;
     }
 
-    private static FrameworkElement About()
+    private static FrameworkElement About(ISettingsHost host)
     {
+        var u = host.Updates;
         var p = Panel();
-        p.Children.Add(Ui.Text("Knob", 16, weight: FontWeights.SemiBold));
-        var v = typeof(SettingsView).Assembly.GetName().Version;
-        p.Children.Add(Ui.Text($"Version {v?.ToString(3) ?? "?"}", 11.5, Ui.Subtle));
+        var head = new StackPanel { Orientation = Orientation.Horizontal };
+        head.Children.Add(Ui.Text("Knob", 16, weight: FontWeights.SemiBold));
+        var ver = Ui.Text($"  {Knob.App.Platform.UpdateService.Current.ToString(3)}", 12, Ui.Subtle);
+        ver.VerticalAlignment = VerticalAlignment.Bottom;
+        head.Children.Add(ver);
+        p.Children.Add(head);
+
+        // Updates: status line + buttons, refreshed while the section is on screen.
+        var status = Ui.Text("", 11.5, Ui.Subtle);
+        var check = new Button { Content = "Check for updates", Padding = new Thickness(12, 3, 12, 3), Margin = new Thickness(0, 0, 6, 0) };
+        check.Click += (_, _) => _ = u.CheckAsync();
+        var install = new Button { Padding = new Thickness(12, 3, 12, 3), Margin = new Thickness(0, 0, 6, 0), Background = Ui.Accent, Foreground = Ui.AccentFg };
+        install.Click += (_, _) => host.InstallUpdate();
+        var notes = new Button { Content = "What's new", Padding = new Thickness(12, 3, 12, 3) };
+        notes.Click += (_, _) =>
+        {
+            if (u.Available?.PageUrl is string url && url.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase))
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+        buttons.Children.Add(check);
+        buttons.Children.Add(install);
+        buttons.Children.Add(notes);
+        void Refresh()
+        {
+            status.Text = u.Status.Length > 0 ? u.Status
+                : u.Settings.LastCheck is { } last ? $"Checked {last.LocalDateTime:d MMM HH:mm}" : "Not checked yet";
+            check.IsEnabled = install.IsEnabled = !u.Busy;
+            var available = u.Available is not null;
+            install.Visibility = notes.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+            if (available) install.Content = $"Update to {u.Available!.Version.ToString(3)}";
+        }
+        var updates = new StackPanel { Margin = new Thickness(0, 10, 0, 6) };
+        updates.Children.Add(status);
+        updates.Children.Add(buttons);
+        p.Children.Add(updates);
+        p.Children.Add(Row("Check automatically", "About once a day, from the project's GitHub releases",
+            Toggle(u.Settings.AutoCheck, on => { u.Settings.AutoCheck = on; host.Save(); })));
+        Ui.WhileLoaded(p, () => { u.Changed += Refresh; Refresh(); }, () => u.Changed -= Refresh);
+        Refresh();
+
         var data = Ui.Text($"Your data: {KnobPaths.DataDir}", 11, Ui.Dim);
-        data.Margin = new Thickness(0, 10, 0, 0);
+        data.Margin = new Thickness(0, 4, 0, 0);
         data.TextWrapping = TextWrapping.Wrap;
         p.Children.Add(data);
-        var open = new Button { Content = "Open data folder", Padding = new Thickness(12, 3, 12, 3), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+        var open = new Button { Content = "Open data folder", Padding = new Thickness(12, 3, 12, 3), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
         open.Click += (_, _) =>
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", KnobPaths.DataDir) { UseShellExecute = true }); }

@@ -11,6 +11,61 @@ public class ClipboardHistoryTests
 
     private static List<string> Texts(ClipboardHistory h) => h.Items.Select(i => i.Text).ToList();
 
+    // ───────── images ─────────
+
+    [Fact]
+    public void AddImage_StoresFileAndSize_NewestFirst()
+    {
+        var h = New();
+        h.Add("hello", T0);
+        Assert.True(h.AddImage("abc123", "abc123.png", 1920, 1080, T0.AddSeconds(1)));
+        var top = h.Items[0];
+        Assert.True(top.IsImage);
+        Assert.Equal("abc123.png", top.Image);
+        Assert.Equal((1920, 1080), (top.Width, top.Height));
+        Assert.Equal("", top.Text);
+        Assert.False(h.Items[1].IsImage);
+    }
+
+    [Fact]
+    public void AddImage_SameHash_MovesToTopWithoutDuplicate()
+    {
+        var h = New();
+        h.AddImage("aaa", "aaa.png", 10, 10, T0);
+        h.Add("text", T0.AddSeconds(1));
+        Assert.True(h.AddImage("bbb", "bbb.png", 10, 10, T0.AddSeconds(2)));
+        Assert.True(h.AddImage("aaa", "aaa-again.png", 10, 10, T0.AddSeconds(3)));
+        Assert.Equal(3, h.Items.Count);
+        Assert.Equal("aaa.png", h.Items[0].Image); // keeps the file it already had
+        Assert.False(h.AddImage("aaa", "x.png", 10, 10, T0.AddSeconds(4))); // already on top
+    }
+
+    [Fact]
+    public void ReferencedImages_ListsFilesStillInHistory()
+    {
+        var h = New(max: 2);
+        h.AddImage("a", "a.png", 1, 1, T0);
+        h.AddImage("b", "b.png", 1, 1, T0.AddSeconds(1));
+        h.Add("t", T0.AddSeconds(2)); // pushes a.png out
+        Assert.Equal(["b.png"], h.ReferencedImages);
+    }
+
+    [Fact]
+    public void Normalize_KeepsImageItems_DropsEmptyOnes()
+    {
+        var h = new ClipboardHistory
+        {
+            Items =
+            [
+                new ClipboardItem { Id = 1, Image = "a.png", ImageHash = "a", Width = 2, Height = 2 },
+                new ClipboardItem { Id = 2, Text = "" },
+                new ClipboardItem { Id = 3, Text = "ok" },
+            ],
+        };
+        h.Normalize();
+        Assert.Equal([1L, 3L], h.Items.Select(i => i.Id));
+    }
+
     [Fact]
     public void Add_PutsNewestFirst()
     {

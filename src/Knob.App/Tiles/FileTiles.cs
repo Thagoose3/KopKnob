@@ -215,6 +215,9 @@ public sealed class LaunchTile : PathListTile
     public override string Id => "launch";
     public override string Title => "Launch";
 
+    /// <summary>The pinned paths, in order (for the quick search palette).</summary>
+    public IReadOnlyList<string> Pinned => Items.Paths;
+
     public override FrameworkElement CreateView(TileSize size)
     {
         var list = new WrapPanel();

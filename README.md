@@ -62,11 +62,14 @@ Home (big clock, Coffee keep-awake, disk space, Capture text) · Music (now play
 
 | Keys | Tool |
 |---|---|
+| `Ctrl+Alt+Space` | Quick search — pages, pinned apps, actions, clipboard text; type `12*7` to calculate |
+| `Ctrl+Alt+S` | Screenshot — drag a box (Enter = whole screen); saved to Pictures\Knob Screenshots, copied, and put on the Shelf |
+| `Ctrl+Alt+C` | Colour picker — magnifier over the screen; click copies `#RRGGBB` |
+| `Ctrl+Alt+T` | Text capture — drag a box on screen; Thai + English text goes to the clipboard |
 | `Ctrl+Alt+K` | Calculator — Enter saves to history and copies the result |
 | `Ctrl+Alt+Q` | QR code — Copy (1024 px PNG) or Save… |
-| `Ctrl+Alt+T` | Text capture — drag a box on screen; Thai + English text goes to the clipboard |
 
-Change them in `settings.json` (`"Hotkeys"`). If one is taken by another app, a tray notification says so.
+Change them in **Settings → Hotkeys** (the ··· button in the panel, or the tray menu). If one is taken by another app, a tray notification says so.
 
 ## Data
 
@@ -77,11 +80,13 @@ Everything lives in `%APPDATA%\Knob\` as plain files (written atomically; a brok
 | `settings.json` | delays, hotkeys, clipboard size, dock position, tabs (order/hidden/last), run-at-startup, hide-on-fullscreen |
 | `notes.txt` | Notes |
 | `todo.json` | To-do |
-| `clipboard.json` | Clipboard history (text only; items marked private by password managers are skipped; **Pause** in the tile stops recording) |
+| `clipboard.json`, `clipimages\` | Clipboard history: text, and images (PNG) when nothing textual was copied. Items marked private by password managers are skipped; **Pause** stops recording |
+| `shelf.json`, `launch.json` | Shelf and Launch pins (paths only — files are never copied) |
 | `calc-history.json` | Calculator history |
+| `events.log` | Hardware events and hotkey registration, for diagnosing alerts |
 | `crash.log` | Unexpected errors, if any |
 
-No network access, no admin rights, no telemetry.
+No admin rights, no telemetry. Network use: the weather (open-meteo.com: the city name when searching, then coordinates rounded to ~1 km) and update checks (api.github.com, about once a day; can be turned off in Settings → About).
 
 ## Project
 

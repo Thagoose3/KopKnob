@@ -23,7 +23,8 @@ public sealed class CaptureOverlayWindow : Window
     private readonly TaskCompletionSource<Int32Rect?> _result = new();
     private Point? _start;
 
-    public CaptureOverlayWindow(BitmapSource screenshot, System.Drawing.Rectangle physicalBounds)
+    /// <param name="allowWholeScreen">Enter picks the whole screen (screenshots).</param>
+    public CaptureOverlayWindow(BitmapSource screenshot, System.Drawing.Rectangle physicalBounds, string title = "Knob text capture", bool allowWholeScreen = false)
     {
         _shot = screenshot;
         _bounds = physicalBounds;
@@ -34,7 +35,9 @@ public sealed class CaptureOverlayWindow : Window
         ShowInTaskbar = false;
         Background = Brushes.Black;
         Cursor = Cursors.Cross;
-        Title = "Knob text capture";
+        Title = title;
+        if (allowWholeScreen)
+            KeyDown += (_, e) => { if (e.Key == Key.Enter) Finish(new Int32Rect(0, 0, _shot.PixelWidth, _shot.PixelHeight)); };
 
         var image = new Image { Source = screenshot, Stretch = Stretch.Fill };
         RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor);

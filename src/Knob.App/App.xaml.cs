@@ -33,6 +33,10 @@ public partial class App : Application, ISettingsHost
     private QrTool? _qr;
     private TesseractOcrService? _ocr;
     private TextCaptureTool? _textCapture;
+    private ScreenshotTool? _screenshot;
+    private ColorPickerTool? _colorPicker;
+    private Func<string, IReadOnlyList<PaletteItem>>? _palette;
+    private UpdateService? _updates;
     private HotkeyManager? _hotkeys;
     private FullscreenWatcher? _fullscreen;
     private BluetoothMonitor? _bluetooth;
@@ -272,7 +276,84 @@ public partial class App : Application, ISettingsHost
         _privacy.Start();
 
         _pages.SettingsFactory = section => SettingsView.Create(this, section);
+
+        _screenshot = new ScreenshotTool(_window, _controller, shelf);
+        _colorPicker = new ColorPickerTool(_window, _controller);
+        _palette = BuildPalette(pages, launch);
+
+        // Updates from GitHub releases: first look a minute after start, then about once a day (minute tick).
+        _updates = new UpdateService(_settings.Updates, SaveSettings);
+        _updates.NewVersionFound += r => Say($"⬆ Knob {r.Version.ToString(3)} is available · Settings → About", TimeSpan.FromSeconds(5));
+        _pillStatus!.MinuteTick += _updates.Tick;
+        var firstCheck = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        firstCheck.Tick += (_, _) => { firstCheck.Stop(); _updates.Tick(); };
+        firstCheck.Start();
         ApplyAlerts();
+    }
+
+    // ───────── quick search palette ─────────
+
+    /// <summary>Open the panel on the search box (hotkey, or "Search" in the tray).</summary>
+    private void OpenSearch()
+    {
+        if (_palette is null) return;
+        _controller!.RequestOpen();
+        _pages!.ShowOverlay(SearchView.Create(_palette));
+        ActivateForKeyboard();
+    }
+
+    private Func<string, IReadOnlyList<PaletteItem>> BuildPalette(IReadOnlyList<PageDef> pages, LaunchTile launch)
+    {
+        // Close the panel and run something that needs the screen (capture tools) or another app.
+        void Then(Action a) { _controller!.RequestClose(); a(); }
+        void Copy(string text, string message) { _ = ClipboardUtil.TrySetTextAsync(text); Say(message, TimeSpan.FromSeconds(1.5)); }
+
+        var fixedItems = new List<PaletteItem>();
+        foreach (var p in pages.Where(p => _settings.Tabs.Order.Contains(p.Id)))
+        {
+            var id = p.Id;
+            fixedItems.Add(new PaletteItem(p.Title, "Page", p.Glyph, () => _pages!.Show(id)));
+        }
+        fixedItems.Add(new PaletteItem("Settings", "Knob", "", () => _pages!.ShowSettings(), "options preferences theme hotkeys"));
+        fixedItems.Add(new PaletteItem("Screenshot", _settings.Hotkeys.Screenshot, "", () => _screenshot!.Start(), "capture snip screen image"));
+        fixedItems.Add(new PaletteItem("Pick a colour from the screen", _settings.Hotkeys.ColorPicker, "", () => _colorPicker!.Start(), "color eyedropper hex"));
+        fixedItems.Add(new PaletteItem("Capture text (OCR)", _settings.Hotkeys.TextCapture, Ui.IconCapture, () => _textCapture!.Start(), "ocr read thai english"));
+        fixedItems.Add(new PaletteItem("Coffee — keep the PC awake", "on / off", Ui.IconBrightness, () =>
+        {
+            _coffee!.Set(!_coffee.IsOn);
+            Say(_coffee.IsOn ? "☕ Keeping the PC awake" : "Coffee off", TimeSpan.FromSeconds(1.5));
+        }, "awake sleep caffeine"));
+        fixedItems.Add(new PaletteItem("Mute / unmute", "Sound", Ui.IconMute, () =>
+        {
+            var muted = !(AudioVolume.IsMuted() ?? false);
+            AudioVolume.SetMuted(muted);
+            Say(muted ? "\U0001F507 Muted" : "\U0001F50A Sound on", TimeSpan.FromSeconds(1.2));
+        }, "volume sound silent"));
+
+        return text =>
+        {
+            var q = text.Trim();
+            var pins = launch.Pinned.Select(path => new PaletteItem(ShellIcons.DisplayName(path), "Open", Ui.IconLaunch, () => Then(() => ShellIcons.Open(path)), path));
+            if (q.Length == 0) return fixedItems.Where(i => i.Subtitle != "Page").Concat(pins).ToList(); // actions first when nothing is typed
+
+            var results = new List<PaletteItem>();
+            if (Knob.Core.Search.PaletteSearch.LooksLikeMath(q) && Knob.Core.Calc.ExpressionEvaluator.TryEvaluate(q, out var value, out _))
+            {
+                var answer = Knob.Core.Calc.CalcHistory.Format(value);
+                results.Add(new PaletteItem($"= {answer}", "Enter copies", Ui.IconCalculator, () => Copy(answer, $"Copied {answer}")));
+            }
+            results.AddRange(Knob.Core.Search.PaletteSearch.Rank(q, fixedItems.Concat(pins), i => i.Title, i => i.Keywords));
+
+            // Clipboard text containing what was typed (most recent first).
+            foreach (var item in (_clipboard?.History.Items ?? []).Where(i => !i.IsImage && i.Text.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(3))
+            {
+                var t = item.Text.Replace("\r\n", " ").Replace('\n', ' ');
+                if (t.Length > 70) t = t[..70] + "…";
+                var full = item.Text;
+                results.Add(new PaletteItem(t, "Clipboard · copy", Ui.IconClipboard, () => Copy(full, "Copied")));
+            }
+            return results;
+        };
     }
 
     /// <summary>The pill is hidden while the panel is open: messages go to the header there.</summary>
@@ -337,6 +418,20 @@ public partial class App : Application, ISettingsHost
 
     public void Close() => _pages!.CloseSettings();
 
+    public UpdateService Updates => _updates!;
+
+    public async void InstallUpdate()
+    {
+        if (_updates is null) return;
+        // The installer closes Knob and starts the new version: save everything first.
+        await _updates.InstallAsync(() =>
+        {
+            SaveSettings();
+            _notes?.Save();
+            _clipboard?.Save();
+        });
+    }
+
     private static string VolumeText(int percent) => percent == 0 ? "\U0001F507 Muted" : $"\U0001F50A {percent}%";
 
     private void UpdatePillWeather() =>
@@ -374,7 +469,11 @@ public partial class App : Application, ISettingsHost
         Add("Calculator", _settings.Hotkeys.Calculator, OpenCalculator);
         Add("QR code", _settings.Hotkeys.Qr, OpenQr);
         Add("Text capture", _settings.Hotkeys.TextCapture, () => _textCapture!.Start());
+        Add("Screenshot", _settings.Hotkeys.Screenshot, () => _screenshot!.Start());
+        Add("Colour picker", _settings.Hotkeys.ColorPicker, () => _colorPicker!.Start());
+        Add("Quick search", _settings.Hotkeys.Search, OpenSearch);
 
+        DiagLog.Write(failed.Count == 0 ? "Hotkeys: all registered" : "Hotkeys not available: " + string.Join(", ", failed));
         if (warn && failed.Count > 0)
             _tray?.ShowWarning("Knob: hotkey not available", "Already used or invalid: " + string.Join(", ", failed));
         return failed;

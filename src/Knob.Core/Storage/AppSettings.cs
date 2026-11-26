@@ -24,6 +24,7 @@ public sealed class AppSettings : IJsonNormalizable
     public TabSettings Tabs { get; set; } = new();
     public WeatherSettings Weather { get; set; } = new();
     public AlertSettings Alerts { get; set; } = new();
+    public UpdateSettings Updates { get; set; } = new();
 
     public void Normalize()
     {
@@ -38,10 +39,21 @@ public sealed class AppSettings : IJsonNormalizable
         Weather.Normalize();
         Alerts ??= new AlertSettings();
         Alerts.Normalize();
+        Updates ??= new UpdateSettings();
         if (HoverOpenDelayMs < 0) HoverOpenDelayMs = 120;
         if (CloseDelayMs < 0) CloseDelayMs = 350;
         if (ClipboardMaxItems <= 0) ClipboardMaxItems = 50;
     }
+}
+
+/// <summary>Update checks against the project's GitHub releases.</summary>
+public sealed class UpdateSettings
+{
+    /// <summary>Look for a new version about once a day.</summary>
+    public bool AutoCheck { get; set; } = true;
+    public DateTimeOffset? LastCheck { get; set; }
+    /// <summary>The newest version the pill already announced (each version is announced once).</summary>
+    public string? AnnouncedVersion { get; set; }
 }
 
 /// <summary>Which pill alerts are on, and their thresholds (0 turns a battery alert off).</summary>
@@ -90,11 +102,17 @@ public sealed class HotkeySettings
     public string Calculator { get; set; } = "Ctrl+Alt+K";
     public string Qr { get; set; } = "Ctrl+Alt+Q";
     public string TextCapture { get; set; } = "Ctrl+Alt+T";
+    public string Screenshot { get; set; } = "Ctrl+Alt+S";
+    public string ColorPicker { get; set; } = "Ctrl+Alt+C";
+    public string Search { get; set; } = "Ctrl+Alt+Space";
 
     internal void Normalize()
     {
         Calculator ??= "Ctrl+Alt+K";
         Qr ??= "Ctrl+Alt+Q";
         TextCapture ??= "Ctrl+Alt+T";
+        Screenshot ??= "Ctrl+Alt+S";
+        ColorPicker ??= "Ctrl+Alt+C";
+        Search ??= "Ctrl+Alt+Space";
     }
 }

@@ -243,3 +243,11 @@ The user wanted a Journey-to-the-West look. After mascot drafts (gourd, chibi an
 - Text inputs: BOM honoured; otherwise strict UTF-8, falling back to Windows-874 — Excel's plain "CSV (Comma delimited)" on Thai Windows writes 874, which read as UTF-8 turned Thai into "�".
 - Markdown inline placeholders are restored newest-first so inline code inside a link label renders.
 - SkiaSharp's native library loads only when converting (no idle cost); adds ~10 MB to the installer.
+
+## 1.2.0: clipboard images, screenshot, colour picker, quick search, updates
+
+- Clipboard images: when the clipboard has no text, a bitmap is saved as PNG in %APPDATA%\Knob\clipimages, named by a SHA-256 of its pixels (copying the same picture again moves it to the top). Text wins when both exist (Excel puts a picture next to copied cells). Files no longer in the history are deleted on save. Same private-content rules as text.
+- Screenshot (Ctrl+Alt+S) reuses the capture overlay (Enter = whole screen): PNG in Pictures\Knob Screenshots, on the clipboard (so it also lands in clipboard history) and parked on the Shelf.
+- Colour picker (Ctrl+Alt+C): frozen screenshot with an 11×11 px loupe at 12×; click copies #RRGGBB.
+- Quick search (Ctrl+Alt+Space): an overlay in the panel like Settings. Ranking in Core (PaletteSearch: exact > prefix > word start > contains > keywords > letters in order); maths answered with the calculator's evaluator.
+- Updates: GitHub "releases/latest" of the project repo, at most every 24 h (pill minute tick, plus once a minute after start); the pill mentions each new version once. Install downloads KnobSetup-*.exe to %TEMP%\Knob-update, checks size and GitHub's SHA-256 digest, then runs it with /S (it closes Knob, updates in place, restarts it). Drafts, pre-releases and releases without an installer are ignored. No token is used; the request carries no personal data.

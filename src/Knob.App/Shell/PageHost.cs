@@ -141,6 +141,15 @@ public sealed class PageHost : DockPanel
         RebuildNav();
     }
 
+    /// <summary>Show any view in place of the page (the quick search palette), like settings.</summary>
+    public void ShowOverlay(FrameworkElement view)
+    {
+        if (_open && _current is not null && !_customizing) Notify(_current, opened: false);
+        _customizing = true;
+        _content.Child = view;
+        RebuildNav();
+    }
+
     /// <summary>Leave settings, back to the page that was showing.</summary>
     public void CloseSettings() => Show(_current?.Id ?? _tabs.Visible[0]);
 
